@@ -1,6 +1,6 @@
 //
 //  RealmReadTests.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  Realm read benchmarks against an in-memory Realm (RealmUser).
 //  Results are lazy, so each query is forced with `Array(...)`.

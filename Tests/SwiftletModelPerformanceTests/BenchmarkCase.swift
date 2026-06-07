@@ -1,6 +1,6 @@
 //
 //  BenchmarkCase.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  Base class for all benchmark suites. Provides:
 //   - the dataset sizes every suite is parametrized over,

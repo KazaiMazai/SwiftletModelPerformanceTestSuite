@@ -1,6 +1,6 @@
 //
 //  SwiftletModelUnindexedReadTests.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  SwiftletModel read benchmarks against the unindexed `PlainUser` — every
 //  query is a full linear scan. Mirror of the indexed suite for direct

@@ -1,6 +1,6 @@
 //
 //  AppModels.swift
-//  SwiftletModelBenchmark
+//  SwiftletModelPerformanceTestSuite
 //
 //  SwiftData / Realm "simple object" models, moved out of the old app target so
 //  the benchmark stands alone. Only what the suite needs: a unique-indexed `id`

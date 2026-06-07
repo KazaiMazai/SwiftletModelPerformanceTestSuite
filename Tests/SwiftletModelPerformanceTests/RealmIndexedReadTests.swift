@@ -1,6 +1,6 @@
 //
 //  RealmIndexedReadTests.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  Realm read benchmarks against an in-memory Realm with indexed `firstName`
 //  and `age` (IndexedRealmUser). Mirror of RealmReadTests. Note: Realm indexes

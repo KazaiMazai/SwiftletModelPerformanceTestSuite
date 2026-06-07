@@ -1,6 +1,6 @@
 //
 //  SQLiteDataWriteTests.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  Write benchmarks for Point-Free SQLiteData against an in-memory DatabaseQueue.
 //  insert: one batch INSERT in a transaction. update: per-id UPDATE statements

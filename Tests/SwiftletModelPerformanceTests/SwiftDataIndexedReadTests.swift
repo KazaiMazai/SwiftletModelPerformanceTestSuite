@@ -1,6 +1,6 @@
 //
 //  SwiftDataIndexedReadTests.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  SwiftData read benchmarks against an in-memory store with `#Index` on the
 //  queried fields (IndexedSwiftUser). Mirror of SwiftDataReadTests.

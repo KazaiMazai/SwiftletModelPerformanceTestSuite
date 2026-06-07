@@ -1,6 +1,6 @@
 //
 //  ParametrizedTestCase.h
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  Runtime-generated parametrized XCTest cases.
 //  XCTest has no native parametrization, so we override the list of test

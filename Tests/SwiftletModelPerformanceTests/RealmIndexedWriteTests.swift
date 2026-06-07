@@ -1,6 +1,6 @@
 //
 //  RealmIndexedWriteTests.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  Realm write benchmarks against an in-memory Realm with indexed fields
 //  (IndexedRealmUser). Shows the index-maintenance cost on writes.

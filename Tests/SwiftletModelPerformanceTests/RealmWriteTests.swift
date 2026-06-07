@@ -1,6 +1,6 @@
 //
 //  RealmWriteTests.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  Realm write benchmarks against an in-memory Realm. Only the write
 //  transaction is timed; update mutates managed objects held from setup, so

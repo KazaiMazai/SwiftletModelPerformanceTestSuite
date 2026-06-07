@@ -1,6 +1,6 @@
 //
 //  BenchmarkResultsWriter.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  Collects per-iteration timings recorded by BenchmarkCase and appends one
 //  summary row per test to a CSV file. The output lands in `BenchmarkResults/`
@@ -78,8 +78,8 @@ enum BenchmarkResultsWriter {
     /// Creates a fresh results file (with header) and returns its URL,
     /// preferring the repo's `BenchmarkResults/` dir, else the temp dir.
     private static func makeFile() -> URL {
-        let preferred = URL(fileURLWithPath: #filePath)        // <pkg>/Tests/SwiftletModelBenchmarkTests/BenchmarkResultsWriter.swift
-            .deletingLastPathComponent()                       // .../SwiftletModelBenchmarkTests
+        let preferred = URL(fileURLWithPath: #filePath)        // <pkg>/Tests/SwiftletModelPerformanceTests/BenchmarkResultsWriter.swift
+            .deletingLastPathComponent()                       // .../SwiftletModelPerformanceTests
             .deletingLastPathComponent()                       // .../Tests
             .deletingLastPathComponent()                       // package root
             .appendingPathComponent("BenchmarkResults/results.csv")
@@ -100,7 +100,7 @@ enum BenchmarkResultsWriter {
     // MARK: - Test-name parsing
 
     /// Parses an XCTest identifier such as
-    /// `-[RealmVsSwiftDataBenchmarks.SwiftletModelIndexedReadTests test_read_equality_int_1000]`
+    /// `-[SwiftletModelPerformanceTests.SwiftletModelIndexedReadTests test_read_equality_int_1000]`
     /// (or the bare `test_read_equality_int_1000`) into export columns.
     private struct Metadata {
         let engine, indexing, access, operation, valueType: String

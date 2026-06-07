@@ -1,4 +1,4 @@
-# SwiftletModelBenchmark
+# SwiftletModelPerformanceTestSuite
 
 In-memory performance benchmarks comparing **[SwiftletModel](https://github.com/KazaiMazai/SwiftletModel)** against the common persistence options on Apple platforms:
 
@@ -44,7 +44,7 @@ swift test -c release
 
 > **Always use `-c release`.** A debug build compiles the Swift layers (SwiftletModel, RealmSwift, GRDB) unoptimized (`-Onone`), which penalizes them by 2–10× while leaving the C/C++ engines untouched — i.e. it produces *distorted*, not just slower, numbers.
 
-Configure the dataset size(s) in `Tests/SwiftletModelBenchmarkTests/BenchmarkCase.swift`:
+Configure the dataset size(s) in `Tests/SwiftletModelPerformanceTests/BenchmarkCase.swift`:
 
 ```swift
 static let sizes = [10, 100, 1_000, 10_000, 100_000]   // one table is produced per size
@@ -194,7 +194,7 @@ Package.swift
 Sources/
   ParametrizedXCTestCase/        # Obj-C runtime-parametrized XCTest base
   bench-report/                  # CSV → table CLI
-Tests/SwiftletModelBenchmarkTests/
+Tests/SwiftletModelPerformanceTests/
   BenchmarkCase.swift            # sizes, registration, measure helpers
   BenchmarkDataset.swift         # seeded dataset + query targets
   BenchmarkEntities.swift        # SwiftletModel entities + in-memory store builders

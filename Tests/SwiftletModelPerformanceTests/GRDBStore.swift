@@ -1,6 +1,6 @@
 //
 //  GRDBStore.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  Plain GRDB (no StructuredQueries layer) — its native query interface over an
 //  in-memory DatabaseQueue. Contrast with SQLiteData, which wraps GRDB.

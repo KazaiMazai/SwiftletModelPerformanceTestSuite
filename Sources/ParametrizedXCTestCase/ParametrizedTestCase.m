@@ -1,6 +1,6 @@
 //
 //  ParametrizedTestCase.m
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 
 #import <Foundation/Foundation.h>

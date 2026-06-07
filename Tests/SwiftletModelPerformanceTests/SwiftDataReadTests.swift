@@ -1,6 +1,6 @@
 //
 //  SwiftDataReadTests.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  SwiftData read benchmarks against an in-memory store (SwiftUser).
 //

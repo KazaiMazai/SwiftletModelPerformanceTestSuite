@@ -1,6 +1,6 @@
 //
 //  BenchmarkDataset.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  Deterministic, engine-agnostic dataset. The same records feed SwiftletModel,
 //  SwiftData and Realm so every engine queries identical data and result-set

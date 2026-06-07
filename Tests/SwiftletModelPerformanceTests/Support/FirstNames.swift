@@ -1,6 +1,6 @@
 //
 //  FirstNames.swift
-//  RealmVsSwiftData
+//  SwiftletModelPerformanceTestSuite
 //
 //  Created by Jacob Bartlett on 02/04/2024.
 //

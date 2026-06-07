@@ -1,6 +1,6 @@
 //
 //  SwiftletModelIndexedWriteTests.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  SwiftletModel write benchmarks against the fully indexed `IndexedUser`.
 //  Pure write path: stores/objects are prepared outside the measured region,

@@ -1,6 +1,6 @@
 //
 //  GRDBWriteTests.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  Write benchmarks using GRDB directly. insert: per-row inserts in one
 //  transaction. update: per-id UPDATE statements in one transaction (no read).

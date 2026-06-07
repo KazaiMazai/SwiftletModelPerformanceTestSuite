@@ -1,6 +1,6 @@
 //
 //  SwiftletModelIndexedReadTests.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  SwiftletModel read benchmarks against the fully indexed `IndexedUser`.
 //  One measured method per (operation × type), each parametrized over all sizes.

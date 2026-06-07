@@ -1,6 +1,6 @@
 //
 //  BenchmarkEntities.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  SwiftletModel benchmark entities (indexed + unindexed) and in-memory store
 //  builders for all three engines. SwiftData/Realm reuse the app's existing

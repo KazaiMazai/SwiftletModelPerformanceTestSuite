@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "SwiftletModelBenchmark",
+    name: "SwiftletModelPerformanceTestSuite",
     platforms: [.macOS(.v15), .iOS(.v18)],
     dependencies: [
         .package(url: "https://github.com/KazaiMazai/SwiftletModel.git", branch: "Write-path-performance-optimization"),
@@ -19,7 +19,7 @@ let package = Package(
             linkerSettings: [.linkedFramework("XCTest")]
         ),
         .testTarget(
-            name: "SwiftletModelBenchmarkTests",
+            name: "SwiftletModelPerformanceTests",
             dependencies: [
                 "ParametrizedXCTestCase",
                 .product(name: "SwiftletModel", package: "SwiftletModel"),

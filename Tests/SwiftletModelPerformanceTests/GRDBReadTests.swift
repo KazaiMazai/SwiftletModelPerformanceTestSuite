@@ -1,6 +1,6 @@
 //
 //  GRDBReadTests.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  Read benchmarks using GRDB's native query interface, in-memory DatabaseQueue.
 //

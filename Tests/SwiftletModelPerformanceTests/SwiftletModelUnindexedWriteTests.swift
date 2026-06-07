@@ -1,6 +1,6 @@
 //
 //  SwiftletModelUnindexedWriteTests.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  SwiftletModel write benchmarks against the unindexed `PlainUser` — isolates
 //  the cost of index maintenance versus the indexed suite.

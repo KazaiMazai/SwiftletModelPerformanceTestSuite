@@ -1,6 +1,6 @@
 //
 //  SQLiteDataReadTests.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  Read benchmarks for Point-Free SQLiteData against an in-memory DatabaseQueue.
 //  No secondary indexes (default config); `id` is the primary key.

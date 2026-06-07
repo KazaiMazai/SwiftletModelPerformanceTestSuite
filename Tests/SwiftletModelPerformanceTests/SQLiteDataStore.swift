@@ -1,6 +1,6 @@
 //
 //  SQLiteDataStore.swift
-//  RealmVsSwiftDataBenchmarks
+//  SwiftletModelPerformanceTestSuite
 //
 //  Point-Free SQLiteData (GRDB + StructuredQueries) model and in-memory store.
 //  `import SQLiteData` re-exports GRDB (DatabaseQueue) and the query DSL.
