@@ -32,7 +32,7 @@ Filter/sort operations are run for both **`Int`** and **`String`** fields. Each 
 - **Realm / SwiftData** — `default` and `indexed` (`@Persisted(indexed:)` / `#Index`).
 - **SQLiteData / GRDB** — `default` (no secondary index).
 
-Measurement uses `XCTest`'s `measure` (10 samples). Test cases are generated at runtime per size via a small Obj-C `ParametrizedTestCase` base (the Quick trick), and each run appends a row per case to `BenchmarkResults/results.csv` (avg / min / max / stddev in ms).
+Each case runs a short **rampup** (discarded warmup iterations to reach steady state — warm caches, lazy init, SQLite prepared-statement compilation) and then times a fixed number of iterations: **50 for reads, 20 for writes** (reads are cheap to repeat; writes rebuild a fresh store every iteration). It's a manual warmup+timed loop rather than XCTest's `measure`, for control over rampup and iteration count. Test cases are generated at runtime per size via a small Obj-C `ParametrizedTestCase` base (the Quick trick), and each run appends a row per case to `BenchmarkResults/results.csv` (avg / min / max / stddev in ms).
 
 ## Running
 
@@ -47,7 +47,7 @@ swift test -c release
 Configure the dataset size(s) in `Tests/SwiftletModelPerformanceTests/BenchmarkCase.swift`:
 
 ```swift
-static let sizes = [10, 100, 1_000, 10_000, 100_000]   // one table is produced per size
+static let sizes = [10, 100, 1_000, 10_000]   // one table is produced per size
 ```
 
 Results are written to `BenchmarkResults/results.csv` at the package root.
@@ -71,19 +71,19 @@ swift run bench-report --by-engine           # per-engine scaling tables
 
 ## Results
 
-Apple Silicon, macOS, **Release**, in-memory, 10 samples per measurement, single run, swept over **10 / 100 / 1,000 / 10,000 / 100,000** rows. Values are **avg ms** (lower is better); `Int` shown for typed reads. **Bold = fastest in row.**
+Apple Silicon, macOS, **Release**, in-memory, **rampup + 50 read / 20 write timed iterations**, single run, swept over **10 / 100 / 1,000 / 10,000** rows. Values are **avg ms** (lower is better); `Int` shown for typed reads. **Bold = fastest in row.**
 
-### Comparison at 100,000 rows
+### Comparison at 10,000 rows
 
 | Operation | SwiftletModel·idx | SwiftletModel·raw | GRDB | SQLiteData | Realm | Realm·idx | SwiftData | SwiftData·idx |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
-| ID lookup | **0.00** | **0.00** | 0.09 | 0.21 | 0.01 | 0.01 | 0.21 | 0.35 |
-| equal | **4.23** | 66.02 | 9.90 | 10.01 | 6.49 | 5.89 | 50.42 | 54.40 |
-| not equal | **48.93** | 112.72 | 84.07 | 56.98 | 85.62 | 90.54 | 933.55 | 956.94 |
-| compare | **25.64** | 88.03 | 42.73 | 31.51 | 44.28 | 46.52 | 451.26 | 473.82 |
-| sort | 130.89 | 422.15 | 118.13 | **81.03** | 119.93 | 126.96 | 991.42 | 1034.98 |
-| insert | 1999.72 | 685.01 | 496.66 | 623.74 | **491.99** | 726.00 | 5206.21 | 5447.02 |
-| update | 4522.19 | 1219.02 | 910.51 | 1555.32 | **57.14** | 172.00 | 3992.18 | 4110.33 |
+| ID lookup | **0.00** | **0.00** | 0.02 | 0.04 | **0.00** | **0.00** | 0.06 | 0.05 |
+| equal | **0.23** | 6.24 | 0.69 | 0.55 | 0.43 | 0.44 | 4.77 | 4.69 |
+| not equal | **4.32** | 10.87 | 7.93 | 5.15 | 8.11 | 8.07 | 90.86 | 87.43 |
+| compare | **2.23** | 8.38 | 3.94 | 2.69 | 4.00 | 3.98 | 41.31 | 42.97 |
+| sort | 10.97 | 34.35 | 10.17 | **7.15** | 10.68 | 10.78 | 91.38 | 96.05 |
+| insert | 171.37 | 60.65 | **46.55** | 58.74 | 49.27 | 65.24 | 454.05 | 469.77 |
+| update | 254.93 | 105.60 | 85.71 | 150.86 | **5.18** | 13.43 | 353.32 | 387.25 |
 
 ### Scaling per engine (`--by-engine`)
 
@@ -93,97 +93,89 @@ Apple Silicon, macOS, **Release**, in-memory, 10 samples per measurement, single
 
 | rows | ID lookup | equal | not equal | compare | sort | insert | update |
 |--:|--:|--:|--:|--:|--:|--:|--:|
-| 10 | 0.01 | 0.07 | 0.10 | 0.11 | 0.08 | 0.59 | 0.37 |
-| 100 | 0.00 | 0.02 | 0.18 | 0.12 | 0.50 | 2.07 | 2.89 |
-| 1,000 | 0.01 | 0.15 | 1.25 | 0.50 | 2.61 | 18.98 | 22.55 |
-| 10,000 | 0.01 | 0.78 | 7.28 | 3.34 | 14.05 | 186.84 | 262.26 |
-| 100,000 | 0.00 | 4.23 | 48.93 | 25.64 | 130.89 | 1999.72 | 4522.19 |
+| 10 | 0.00 | 0.00 | 0.02 | 0.01 | 0.02 | 0.15 | 0.15 |
+| 100 | 0.00 | 0.00 | 0.08 | 0.04 | 0.13 | 1.43 | 1.70 |
+| 1,000 | 0.00 | 0.02 | 0.45 | 0.23 | 1.11 | 15.62 | 21.08 |
+| 10,000 | 0.00 | 0.23 | 4.32 | 2.23 | 10.97 | 171.37 | 254.93 |
 
 **SwiftletModel · unindexed** — no index, so even `equal`/`compare` scale ~linearly, but writes are cheap:
 
 | rows | ID lookup | equal | not equal | compare | sort | insert | update |
 |--:|--:|--:|--:|--:|--:|--:|--:|
-| 10 | 0.01 | 0.06 | 0.04 | 0.08 | 0.12 | 0.14 | 0.17 |
-| 100 | 0.00 | 0.15 | 0.24 | 0.34 | 0.91 | 1.35 | 1.71 |
-| 1,000 | 0.00 | 1.63 | 2.57 | 1.90 | 4.78 | 8.41 | 12.00 |
-| 10,000 | 0.00 | 9.09 | 12.47 | 11.42 | 38.53 | 64.91 | 108.40 |
-| 100,000 | 0.00 | 66.02 | 112.72 | 88.03 | 422.15 | 685.01 | 1219.02 |
+| 10 | 0.00 | 0.01 | 0.01 | 0.01 | 0.02 | 0.05 | 0.07 |
+| 100 | 0.00 | 0.07 | 0.11 | 0.08 | 0.31 | 0.51 | 0.77 |
+| 1,000 | 0.00 | 0.63 | 1.08 | 0.84 | 4.11 | 5.42 | 10.22 |
+| 10,000 | 0.00 | 6.24 | 10.87 | 8.38 | 34.35 | 60.65 | 105.60 |
 
 **GRDB · default**
 
 | rows | ID lookup | equal | not equal | compare | sort | insert | update |
 |--:|--:|--:|--:|--:|--:|--:|--:|
-| 10 | 0.12 | 0.24 | 0.14 | 0.11 | 0.11 | 0.38 | 0.65 |
-| 100 | 0.14 | 0.10 | 0.40 | 0.36 | 0.45 | 1.16 | 2.42 |
-| 1,000 | 0.24 | 0.24 | 2.05 | 0.96 | 2.52 | 8.09 | 10.56 |
-| 10,000 | 0.09 | 1.22 | 10.62 | 6.70 | 12.51 | 50.40 | 88.10 |
-| 100,000 | 0.09 | 9.90 | 84.07 | 42.73 | 118.13 | 496.66 | 910.51 |
+| 10 | 0.03 | 0.02 | 0.03 | 0.03 | 0.03 | 0.08 | 0.10 |
+| 100 | 0.03 | 0.03 | 0.10 | 0.06 | 0.11 | 0.48 | 0.87 |
+| 1,000 | 0.03 | 0.10 | 0.82 | 0.41 | 1.00 | 4.54 | 8.67 |
+| 10,000 | 0.02 | 0.69 | 7.93 | 3.94 | 10.17 | 46.55 | 85.71 |
 
 **SQLiteData · default**
 
 | rows | ID lookup | equal | not equal | compare | sort | insert | update |
 |--:|--:|--:|--:|--:|--:|--:|--:|
-| 10 | 0.33 | 0.19 | 0.27 | 0.25 | 0.12 | 0.22 | 0.39 |
-| 100 | 0.13 | 0.11 | 0.20 | 0.29 | 0.56 | 1.63 | 3.77 |
-| 1,000 | 0.30 | 0.22 | 1.96 | 0.95 | 1.42 | 10.36 | 17.71 |
-| 10,000 | 0.30 | 2.23 | 8.25 | 6.08 | 11.24 | 64.52 | 154.63 |
-| 100,000 | 0.21 | 10.01 | 56.98 | 31.51 | 81.03 | 623.74 | 1555.32 |
+| 10 | 0.04 | 0.03 | 0.03 | 0.03 | 0.03 | 0.08 | 0.16 |
+| 100 | 0.04 | 0.03 | 0.08 | 0.05 | 0.09 | 0.58 | 1.55 |
+| 1,000 | 0.04 | 0.08 | 0.54 | 0.27 | 0.72 | 5.73 | 15.06 |
+| 10,000 | 0.04 | 0.55 | 5.15 | 2.69 | 7.15 | 58.74 | 150.86 |
 
-**Realm · default** — `update` is the standout: ~57 ms at 100k while everyone else is in the *seconds*:
+**Realm · default** — `update` is the standout: ~5 ms at 10k while everyone else is 86–355 ms:
 
 | rows | ID lookup | equal | not equal | compare | sort | insert | update |
 |--:|--:|--:|--:|--:|--:|--:|--:|
-| 10 | 0.02 | 0.05 | 0.08 | 0.09 | 0.09 | 0.37 | 0.32 |
-| 100 | 0.02 | 0.04 | 0.20 | 0.11 | 0.52 | 1.48 | 0.20 |
-| 1,000 | 0.02 | 0.30 | 2.53 | 2.01 | 3.04 | 6.56 | 0.70 |
-| 10,000 | 0.01 | 1.29 | 12.42 | 5.93 | 14.56 | 51.15 | 5.32 |
-| 100,000 | 0.01 | 6.49 | 85.62 | 44.28 | 119.93 | 491.99 | 57.14 |
+| 10 | 0.00 | 0.01 | 0.01 | 0.01 | 0.02 | 0.15 | 0.07 |
+| 100 | 0.00 | 0.01 | 0.09 | 0.04 | 0.10 | 0.58 | 0.20 |
+| 1,000 | 0.00 | 0.05 | 0.80 | 0.39 | 1.02 | 5.14 | 0.66 |
+| 10,000 | 0.00 | 0.43 | 8.11 | 4.00 | 10.68 | 49.27 | 5.18 |
 
 **Realm · indexed**
 
 | rows | ID lookup | equal | not equal | compare | sort | insert | update |
 |--:|--:|--:|--:|--:|--:|--:|--:|
-| 10 | 0.03 | 0.11 | 0.10 | 0.05 | 0.07 | 0.98 | 0.22 |
-| 100 | 0.01 | 0.04 | 0.19 | 0.10 | 0.21 | 1.08 | 0.26 |
-| 1,000 | 0.01 | 0.13 | 1.63 | 0.77 | 3.38 | 8.55 | 1.42 |
-| 10,000 | 0.01 | 1.97 | 10.36 | 7.41 | 13.35 | 65.88 | 14.13 |
-| 100,000 | 0.01 | 5.89 | 90.54 | 46.52 | 126.96 | 726.00 | 172.00 |
+| 10 | 0.01 | 0.01 | 0.01 | 0.01 | 0.02 | 0.47 | 0.11 |
+| 100 | 0.00 | 0.01 | 0.08 | 0.05 | 0.10 | 2.02 | 0.20 |
+| 1,000 | 0.00 | 0.05 | 0.83 | 0.39 | 1.02 | 7.96 | 1.23 |
+| 10,000 | 0.00 | 0.44 | 8.07 | 3.98 | 10.78 | 65.24 | 13.43 |
 
-**SwiftData · default** — last on every read/insert; the gap widens with N (`not equal` reaches ~0.9 s):
+**SwiftData · default** — last on every read/insert; the gap widens with N (`not equal` ~91 ms at 10k):
 
 | rows | ID lookup | equal | not equal | compare | sort | insert | update |
 |--:|--:|--:|--:|--:|--:|--:|--:|
-| 10 | 0.42 | 0.42 | 0.39 | 0.30 | 0.48 | 1.72 | 1.18 |
-| 100 | 0.74 | 0.43 | 1.74 | 1.02 | 2.38 | 5.83 | 4.60 |
-| 1,000 | 0.40 | 1.62 | 11.46 | 4.79 | 11.88 | 45.79 | 34.16 |
-| 10,000 | 0.42 | 7.53 | 87.93 | 43.22 | 92.35 | 458.92 | 346.58 |
-| 100,000 | 0.21 | 50.42 | 933.55 | 451.26 | 991.42 | 5206.21 | 3992.18 |
+| 10 | 0.05 | 0.05 | 0.13 | 0.09 | 0.13 | 0.73 | 0.56 |
+| 100 | 0.05 | 0.09 | 0.91 | 0.43 | 0.95 | 4.72 | 3.58 |
+| 1,000 | 0.05 | 0.53 | 8.39 | 4.15 | 8.90 | 43.39 | 34.41 |
+| 10,000 | 0.06 | 4.77 | 90.86 | 41.31 | 91.38 | 454.05 | 353.32 |
 
 **SwiftData · indexed**
 
 | rows | ID lookup | equal | not equal | compare | sort | insert | update |
 |--:|--:|--:|--:|--:|--:|--:|--:|
-| 10 | 0.56 | 0.32 | 0.45 | 0.75 | 1.13 | 2.22 | 1.49 |
-| 100 | 0.52 | 0.28 | 2.27 | 1.10 | 3.63 | 7.80 | 4.92 |
-| 1,000 | 0.22 | 1.35 | 10.98 | 7.75 | 13.71 | 46.14 | 35.21 |
-| 10,000 | 0.60 | 9.61 | 91.75 | 48.21 | 98.37 | 483.82 | 441.63 |
-| 100,000 | 0.35 | 54.40 | 956.94 | 473.82 | 1034.98 | 5447.02 | 4110.33 |
+| 10 | 0.06 | 0.05 | 0.14 | 0.09 | 0.14 | 0.74 | 0.58 |
+| 100 | 0.06 | 0.08 | 0.95 | 0.44 | 1.00 | 4.54 | 3.71 |
+| 1,000 | 0.06 | 0.53 | 8.61 | 4.25 | 9.09 | 43.83 | 35.24 |
+| 10,000 | 0.05 | 4.69 | 87.43 | 42.97 | 96.05 | 469.77 | 387.25 |
 
 ### Takeaways
 
-- **SwiftletModel (indexed) wins every read except `sort`** — `ID lookup` (flat, O(1)), `equal` (4.2 ms at 100k vs SwiftData's 50), and even `not equal` / `compare` (it and SQLiteData trade these run-to-run; here SwiftletModel takes them). Its in-memory keyed store + indexes are unbeatable for *finding* rows.
-- **`sort` goes to SQLiteData** at scale (81 ms vs 131 ms at 100k) — SQLite's native C sort is the fastest in-RAM, with GRDB/Realm/SwiftletModel clustered behind.
-- **Realm owns `update`, overwhelmingly** — 57 ms at 100k while *everyone else is in the seconds* (0.9–4.5 s). In-place mutation of live objects barely cares about N.
-- **Insert: Realm ≈ GRDB** (~0.49 s at 100k), then SQLiteData and unindexed SwiftletModel; SwiftData is ~5 s.
-- **SwiftletModel's indexed writes are its weak spot at scale.** At 100k, indexed insert is **2.0 s** and update **4.5 s** — 3–4× its *unindexed* self (0.69 s / 1.2 s) and the slowest writes in the table — because index maintenance scales super-linearly. Skip the index and writes are competitive, but reads fall off. **You pick one config.**
-- **SwiftData is last on every read and insert, by ~8–10× at scale** (`not equal` 0.93 s, insert 5.2 s at 100k). It runs the *same* `:memory:` SQLite as SQLiteData/GRDB — both far faster — so the cost is its object-materialization layer, not the database.
+- **SwiftletModel (indexed) wins every read except `sort`** — `ID lookup` (~0, O(1)), `equal` (0.23 ms at 10k vs SwiftData's 4.8 — ~20×), `not equal` (4.3 vs SQLite's 5.2), and `compare` (2.2 vs 2.7). Its in-memory keyed store + indexes are unbeatable for *finding* rows.
+- **`sort` goes to SQLiteData** (7.2 ms at 10k) — SQLite's native C sort is the fastest in-RAM, with GRDB / Realm / SwiftletModel clustered ~10–11 ms behind.
+- **Realm owns `update`, overwhelmingly** — 5.2 ms at 10k while everyone else is 86–355 ms; it barely scales with N. In-place mutation of live objects.
+- **Insert is a four-way cluster** — GRDB 46.6 ≈ Realm 49.3 ≈ SQLiteData 58.7 ≈ unindexed SwiftletModel 60.7 ms; SwiftData is ~454 ms.
+- **SwiftletModel's indexed writes are its weak spot.** At 10k, indexed insert (171 ms) and update (255 ms) are ~3× / ~2.4× its *unindexed* self (61 / 106 ms) and the slowest writes outside SwiftData — index maintenance scales super-linearly. Skip the index and writes are competitive, but reads fall off. **You pick one config.**
+- **SwiftData is last on every read and insert, by ~8–10×** (`not equal` 91 ms, insert 454 ms at 10k). It runs the *same* `:memory:` SQLite as SQLiteData/GRDB — both far faster — so the cost is its object-materialization layer, not the database.
 - **Scaling shapes:** `ID lookup` flat (O(1)); indexed `equal` scales gently while *unindexed* `equal` is ~linear; most reads/writes are ~linear, except SwiftletModel's indexed writes (super-linear).
 
 ## Methodology & caveats
 
 - **Release only** (see above). Cross-module optimization isn't enabled because it conflicts with the testability needed by the test target; `-O` + whole-module is the representative max.
 - **In-memory.** SwiftData/SQLite indexes mainly optimize disk I/O, so on disk the comparison would shift.
-- **Noise.** Fast reads (`equal`/`compare`/`not equal`) complete in well under a millisecond and carry ~20–80% run-to-run variance at 10 samples — treat them to ~1 significant figure and prefer `--metric min`. `sort`, `insert`, `update`, `ID lookup` are stable to ~5%. Rankings are stable across runs even where exact values aren't.
+- **Noise.** The sub-millisecond reads (`equal`/`compare`/`ID lookup`) are inherently the jitteriest; the rampup + 50/20 iterations damp most of it, but treat those cells to ~1 significant figure and cross-check with `--metric min` if in doubt. `sort`, `insert`, `update` are stable. Rankings are stable across runs even where exact values aren't.
 - **Result semantics differ:** SwiftletModel/SQLiteData/GRDB/SwiftData return value copies; Realm returns lazy live objects (cheap to fetch, cost deferred to access).
 - This is a **micro-benchmark of a synthetic workload** — use it to understand the engines' shapes, not as a single verdict.
 

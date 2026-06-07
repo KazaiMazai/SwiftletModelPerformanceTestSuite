@@ -14,9 +14,14 @@ import ParametrizedXCTestCase
 class BenchmarkCase: ParametrizedTestCase {
 
     /// Row counts every benchmark is run against.
-//    static let sizes = [1_000]
-//    static let sizes = [1_000, 5_000, 10_000]
-    static let sizes = [10, 100, 1_000, 10_000, 100_000]
+    static let sizes = [10, 100, 1_000, 10_000]
+
+    // Warmup (discarded) + measured iteration counts. Reads are cheap to repeat,
+    // so they get more; writes rebuild a fresh store every iteration, so fewer.
+    static let readRampup = 5
+    static let readIterations = 50
+    static let writeRampup = 3
+    static let writeIterations = 20
 
     // Subclasses override this and return `registerParametrized(...)`.
     override class func _qck_testMethodSelectors() -> [_QuickSelectorWrapper] {
@@ -51,32 +56,38 @@ class BenchmarkCase: ParametrizedTestCase {
     }
 
     // MARK: - Measurement helpers
+    //
+    // A manual warmup + timed loop (instead of XCTest's `measure`) so we control
+    // rampup and iteration count: the first `rampup` runs are discarded to reach
+    // steady state (warm caches, lazy init, prepared-statement compilation, …),
+    // then each of the next `iterations` runs is timed and recorded for the CSV.
 
-    /// Measures a read/query closure. The store must already be populated
-    /// (outside the measured region) by the caller. Each iteration's duration
-    /// is also recorded for CSV export.
+    /// Times a read/query closure. The store must already be populated (outside
+    /// the measured region) by the caller.
     func measureRead(_ work: () -> Void) {
-        measure {
+        for _ in 0..<Self.readRampup { work() }
+        for _ in 0..<Self.readIterations {
             let start = DispatchTime.now().uptimeNanoseconds
             work()
             let elapsed = DispatchTime.now().uptimeNanoseconds - start
-            BenchmarkResultsWriter.record(test: self.name, seconds: Double(elapsed) / 1_000_000_000)
+            BenchmarkResultsWriter.record(test: name, seconds: Double(elapsed) / 1_000_000_000)
         }
     }
 
-    /// Measures a write closure with per-iteration setup kept *out* of the
-    /// measured region. `prepare` runs before each measured iteration (build a
-    /// fresh store and any pre-mutated objects); only `work` is timed and
-    /// recorded for CSV export.
+    /// Times a write closure with per-iteration setup kept *out* of the timed
+    /// region. `prepare` runs before each iteration (build a fresh store and any
+    /// pre-mutated objects); only `work` is timed and recorded.
     func measureWrite<State>(prepare: () -> State, work: (State) -> Void) {
-        measureMetrics([XCTPerformanceMetric.wallClockTime], automaticallyStartMeasuring: false) {
+        for _ in 0..<Self.writeRampup {
+            let state = prepare()
+            work(state)
+        }
+        for _ in 0..<Self.writeIterations {
             let state = prepare()
             let start = DispatchTime.now().uptimeNanoseconds
-            self.startMeasuring()
             work(state)
-            self.stopMeasuring()
             let elapsed = DispatchTime.now().uptimeNanoseconds - start
-            BenchmarkResultsWriter.record(test: self.name, seconds: Double(elapsed) / 1_000_000_000)
+            BenchmarkResultsWriter.record(test: name, seconds: Double(elapsed) / 1_000_000_000)
         }
     }
 }
