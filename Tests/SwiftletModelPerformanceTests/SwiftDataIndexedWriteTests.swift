@@ -2,8 +2,9 @@
 //  SwiftDataIndexedWriteTests.swift
 //  SwiftletModelPerformanceTestSuite
 //
-//  SwiftData write benchmarks against an in-memory store with `#Index`
-//  (IndexedSwiftUser). Shows the index-maintenance cost on writes.
+//  SwiftData write benchmarks against an in-memory store with a single B-tree
+//  index on `firstName` (`SwiftUserNameIndexed`) — the field the update mutates,
+//  so `update` actually churns the index. Isolated single-index write cost.
 //
 
 import XCTest
@@ -22,9 +23,9 @@ final class SwiftDataIndexedWriteTests: BenchmarkCase {
     func write_insert(_ size: Int) {
         let records = BenchmarkData.records(count: size)
         measureWrite(
-            prepare: { () -> (ModelContext, [IndexedSwiftUser]) in
-                let context = Stores.emptyIndexedSwiftDataContext()
-                let users = records.map { IndexedSwiftUser(firstName: $0.firstName, surname: $0.surname, age: $0.age) }
+            prepare: { () -> (ModelContext, [SwiftUserNameIndexed]) in
+                let context = Stores.emptyNameIndexedSwiftDataContext()
+                let users = records.map { SwiftUserNameIndexed(firstName: $0.firstName, surname: $0.surname, age: $0.age) }
                 return (context, users)
             },
             work: { state in
@@ -37,9 +38,9 @@ final class SwiftDataIndexedWriteTests: BenchmarkCase {
     func write_update(_ size: Int) {
         let records = BenchmarkData.records(count: size)
         measureWrite(
-            prepare: { () -> (ModelContext, [IndexedSwiftUser]) in
-                let context = Stores.emptyIndexedSwiftDataContext()
-                let users = records.map { IndexedSwiftUser(firstName: $0.firstName, surname: $0.surname, age: $0.age) }
+            prepare: { () -> (ModelContext, [SwiftUserNameIndexed]) in
+                let context = Stores.emptyNameIndexedSwiftDataContext()
+                let users = records.map { SwiftUserNameIndexed(firstName: $0.firstName, surname: $0.surname, age: $0.age) }
                 for user in users { context.insert(user) }
                 try! context.save()
                 return (context, users)

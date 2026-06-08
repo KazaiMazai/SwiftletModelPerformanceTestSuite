@@ -5,7 +5,7 @@ let package = Package(
     name: "SwiftletModelPerformanceTestSuite",
     platforms: [.macOS(.v15), .iOS(.v18)],
     dependencies: [
-        .package(url: "https://github.com/KazaiMazai/SwiftletModel.git", branch: "Write-path-performance-optimization"),
+        .package(url: "https://github.com/KazaiMazai/SwiftletModel.git", branch: "main"),
         .package(url: "https://github.com/realm/realm-swift", branch: "master"),
         .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.6.4"),
         .package(url: "https://github.com/groue/GRDB.swift", from: "7.11.0"),

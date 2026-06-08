@@ -2,8 +2,9 @@
 //  SwiftDataIndexedReadTests.swift
 //  SwiftletModelPerformanceTestSuite
 //
-//  SwiftData read benchmarks against an in-memory store with `#Index` on the
-//  queried fields (IndexedSwiftUser). Mirror of SwiftDataReadTests.
+//  SwiftData read benchmarks against in-memory stores indexed on a single field
+//  (B-tree `#Index`): int queries hit `SwiftUserAgeIndexed`, string queries hit
+//  `SwiftUserNameIndexed`, so each read measures one index in isolation.
 //
 
 import XCTest
@@ -26,68 +27,71 @@ final class SwiftDataIndexedReadTests: BenchmarkCase {
         ])
     }
 
-    private func fetch(_ context: ModelContext, _ descriptor: FetchDescriptor<IndexedSwiftUser>) {
+    private func fetch<T: PersistentModel>(_ context: ModelContext, _ descriptor: FetchDescriptor<T>) {
         _ = try! context.fetch(descriptor)
     }
 
+    // Int queries → entity indexed on `age`.
     func read_equality_int(_ size: Int) {
-        let context = Stores.indexedSwiftDataContext(BenchmarkData.records(count: size))
+        let context = Stores.ageIndexedSwiftDataContext(BenchmarkData.records(count: size))
         let target = BenchmarkData.targetAge
-        let predicate = #Predicate<IndexedSwiftUser> { $0.age == target }
-        measureRead { fetch(context, FetchDescriptor(predicate: predicate)) }
-    }
-
-    func read_equality_string(_ size: Int) {
-        let context = Stores.indexedSwiftDataContext(BenchmarkData.records(count: size))
-        let target = BenchmarkData.targetName
-        let predicate = #Predicate<IndexedSwiftUser> { $0.firstName == target }
+        let predicate = #Predicate<SwiftUserAgeIndexed> { $0.age == target }
         measureRead { fetch(context, FetchDescriptor(predicate: predicate)) }
     }
 
     func read_notEqual_int(_ size: Int) {
-        let context = Stores.indexedSwiftDataContext(BenchmarkData.records(count: size))
+        let context = Stores.ageIndexedSwiftDataContext(BenchmarkData.records(count: size))
         let target = BenchmarkData.targetAge
-        let predicate = #Predicate<IndexedSwiftUser> { $0.age != target }
-        measureRead { fetch(context, FetchDescriptor(predicate: predicate)) }
-    }
-
-    func read_notEqual_string(_ size: Int) {
-        let context = Stores.indexedSwiftDataContext(BenchmarkData.records(count: size))
-        let target = BenchmarkData.targetName
-        let predicate = #Predicate<IndexedSwiftUser> { $0.firstName != target }
+        let predicate = #Predicate<SwiftUserAgeIndexed> { $0.age != target }
         measureRead { fetch(context, FetchDescriptor(predicate: predicate)) }
     }
 
     func read_comparison_int(_ size: Int) {
-        let context = Stores.indexedSwiftDataContext(BenchmarkData.records(count: size))
+        let context = Stores.ageIndexedSwiftDataContext(BenchmarkData.records(count: size))
         let threshold = BenchmarkData.ageThreshold
-        let predicate = #Predicate<IndexedSwiftUser> { $0.age > threshold }
-        measureRead { fetch(context, FetchDescriptor(predicate: predicate)) }
-    }
-
-    func read_comparison_string(_ size: Int) {
-        let context = Stores.indexedSwiftDataContext(BenchmarkData.records(count: size))
-        let threshold = BenchmarkData.nameThreshold
-        let predicate = #Predicate<IndexedSwiftUser> { $0.firstName > threshold }
+        let predicate = #Predicate<SwiftUserAgeIndexed> { $0.age > threshold }
         measureRead { fetch(context, FetchDescriptor(predicate: predicate)) }
     }
 
     func read_sort_int(_ size: Int) {
-        let context = Stores.indexedSwiftDataContext(BenchmarkData.records(count: size))
-        measureRead { fetch(context, FetchDescriptor(sortBy: [SortDescriptor(\.age)])) }
+        let context = Stores.ageIndexedSwiftDataContext(BenchmarkData.records(count: size))
+        measureRead { fetch(context, FetchDescriptor<SwiftUserAgeIndexed>(sortBy: [SortDescriptor(\.age)])) }
+    }
+
+    // String queries → entity indexed on `firstName`.
+    func read_equality_string(_ size: Int) {
+        let context = Stores.nameIndexedSwiftDataContext(BenchmarkData.records(count: size))
+        let target = BenchmarkData.targetName
+        let predicate = #Predicate<SwiftUserNameIndexed> { $0.firstName == target }
+        measureRead { fetch(context, FetchDescriptor(predicate: predicate)) }
+    }
+
+    func read_notEqual_string(_ size: Int) {
+        let context = Stores.nameIndexedSwiftDataContext(BenchmarkData.records(count: size))
+        let target = BenchmarkData.targetName
+        let predicate = #Predicate<SwiftUserNameIndexed> { $0.firstName != target }
+        measureRead { fetch(context, FetchDescriptor(predicate: predicate)) }
+    }
+
+    func read_comparison_string(_ size: Int) {
+        let context = Stores.nameIndexedSwiftDataContext(BenchmarkData.records(count: size))
+        let threshold = BenchmarkData.nameThreshold
+        let predicate = #Predicate<SwiftUserNameIndexed> { $0.firstName > threshold }
+        measureRead { fetch(context, FetchDescriptor(predicate: predicate)) }
     }
 
     func read_sort_string(_ size: Int) {
-        let context = Stores.indexedSwiftDataContext(BenchmarkData.records(count: size))
-        measureRead { fetch(context, FetchDescriptor(sortBy: [SortDescriptor(\.firstName)])) }
+        let context = Stores.nameIndexedSwiftDataContext(BenchmarkData.records(count: size))
+        measureRead { fetch(context, FetchDescriptor<SwiftUserNameIndexed>(sortBy: [SortDescriptor(\.firstName)])) }
     }
 
+    // byID → primary key; entity choice is irrelevant.
     func read_byID(_ size: Int) {
-        let context = Stores.indexedSwiftDataContext(BenchmarkData.records(count: size))
-        var probe = FetchDescriptor<IndexedSwiftUser>()
+        let context = Stores.nameIndexedSwiftDataContext(BenchmarkData.records(count: size))
+        var probe = FetchDescriptor<SwiftUserNameIndexed>()
         probe.fetchLimit = 1
         let targetID = try! context.fetch(probe).first!.id
-        let predicate = #Predicate<IndexedSwiftUser> { $0.id == targetID }
+        let predicate = #Predicate<SwiftUserNameIndexed> { $0.id == targetID }
         measureRead { fetch(context, FetchDescriptor(predicate: predicate)) }
     }
 }

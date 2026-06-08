@@ -2,8 +2,10 @@
 //  SwiftletModelIndexedReadTests.swift
 //  SwiftletModelPerformanceTestSuite
 //
-//  SwiftletModel read benchmarks against the fully indexed `IndexedUser`.
-//  One measured method per (operation × type), each parametrized over all sizes.
+//  SwiftletModel read benchmarks. Each query runs against an entity carrying
+//  *only* the one index that query uses (hash for `==`, comparable BTree for
+//  `!=` / `>` / sort), so each index is measured in isolation rather than
+//  alongside three unrelated ones. One measured method per (operation × type).
 //
 
 import XCTest
@@ -26,50 +28,53 @@ final class SwiftletModelIndexedReadTests: BenchmarkCase {
         ])
     }
 
+    // equality → hash index
     func read_equality_int(_ size: Int) {
-        let context = Stores.indexedContext(BenchmarkData.records(count: size))
-        measureRead { _ = IndexedUser.filter(\.age == BenchmarkData.targetAge).resolve(in: context) }
+        let context = Stores.context(IntHashUser.self, BenchmarkData.records(count: size))
+        measureRead { _ = IntHashUser.filter(\.age == BenchmarkData.targetAge).resolve(in: context) }
     }
 
     func read_equality_string(_ size: Int) {
-        let context = Stores.indexedContext(BenchmarkData.records(count: size))
-        measureRead { _ = IndexedUser.filter(\.firstName == BenchmarkData.targetName).resolve(in: context) }
+        let context = Stores.context(StringHashUser.self, BenchmarkData.records(count: size))
+        measureRead { _ = StringHashUser.filter(\.firstName == BenchmarkData.targetName).resolve(in: context) }
     }
 
+    // notEqual / comparison / sort → comparable BTree index
     func read_notEqual_int(_ size: Int) {
-        let context = Stores.indexedContext(BenchmarkData.records(count: size))
-        measureRead { _ = IndexedUser.filter(\.age != BenchmarkData.targetAge).resolve(in: context) }
+        let context = Stores.context(IntSortUser.self, BenchmarkData.records(count: size))
+        measureRead { _ = IntSortUser.filter(\.age != BenchmarkData.targetAge).resolve(in: context) }
     }
 
     func read_notEqual_string(_ size: Int) {
-        let context = Stores.indexedContext(BenchmarkData.records(count: size))
-        measureRead { _ = IndexedUser.filter(\.firstName != BenchmarkData.targetName).resolve(in: context) }
+        let context = Stores.context(StringSortUser.self, BenchmarkData.records(count: size))
+        measureRead { _ = StringSortUser.filter(\.firstName != BenchmarkData.targetName).resolve(in: context) }
     }
 
     func read_comparison_int(_ size: Int) {
-        let context = Stores.indexedContext(BenchmarkData.records(count: size))
-        measureRead { _ = IndexedUser.filter(\.age > BenchmarkData.ageThreshold).resolve(in: context) }
+        let context = Stores.context(IntSortUser.self, BenchmarkData.records(count: size))
+        measureRead { _ = IntSortUser.filter(\.age > BenchmarkData.ageThreshold).resolve(in: context) }
     }
 
     func read_comparison_string(_ size: Int) {
-        let context = Stores.indexedContext(BenchmarkData.records(count: size))
-        measureRead { _ = IndexedUser.filter(\.firstName > BenchmarkData.nameThreshold).resolve(in: context) }
+        let context = Stores.context(StringSortUser.self, BenchmarkData.records(count: size))
+        measureRead { _ = StringSortUser.filter(\.firstName > BenchmarkData.nameThreshold).resolve(in: context) }
     }
 
     func read_sort_int(_ size: Int) {
-        let context = Stores.indexedContext(BenchmarkData.records(count: size))
-        measureRead { _ = IndexedUser.query().sorted(by: \.age).resolve(in: context) }
+        let context = Stores.context(IntSortUser.self, BenchmarkData.records(count: size))
+        measureRead { _ = IntSortUser.query().sorted(by: \.age).resolve(in: context) }
     }
 
     func read_sort_string(_ size: Int) {
-        let context = Stores.indexedContext(BenchmarkData.records(count: size))
-        measureRead { _ = IndexedUser.query().sorted(by: \.firstName).resolve(in: context) }
+        let context = Stores.context(StringSortUser.self, BenchmarkData.records(count: size))
+        measureRead { _ = StringSortUser.query().sorted(by: \.firstName).resolve(in: context) }
     }
 
+    // byID → primary key (no secondary index); any entity is equivalent.
     func read_byID(_ size: Int) {
         let records = BenchmarkData.records(count: size)
-        let context = Stores.indexedContext(records)
+        let context = Stores.context(IntHashUser.self, records)
         let targetID = records[size / 2].id
-        measureRead { _ = IndexedUser.query(targetID).resolve(in: context) }
+        measureRead { _ = IntHashUser.query(targetID).resolve(in: context) }
     }
 }

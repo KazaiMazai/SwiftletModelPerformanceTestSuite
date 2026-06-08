@@ -1,5 +1,5 @@
 {
-  "originHash" : "4593e85aed3fe6f6c7d07b2f686256f925624b6e846e6d3e70d8e063a49df6a8",
+  "originHash" : "133d739d2bc6a7f6f43e32766268f941b0b39f7e5e919a5ba9bdff40c3c380f8",
   "pins" : [
     {
       "identity" : "btree",
@@ -159,8 +159,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/KazaiMazai/SwiftletModel.git",
       "state" : {
-        "branch" : "Write-path-performance-optimization",
-        "revision" : "fff94f06cab25eed1baa916e9215725c3ca7a3e9"
+        "branch" : "main",
+        "revision" : "d6adb11d376ed19846a740456d5abe40a0ef0851"
       }
     },
     {

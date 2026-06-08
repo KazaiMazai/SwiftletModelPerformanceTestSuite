@@ -20,16 +20,17 @@ struct BenchReport {
         let avg, min, max, stddev: Double
     }
 
-    // Column order + display labels. `default` indexing shows the bare engine.
+    // Column order + display labels. `idx` = indexed; a bare engine name is the
+    // config with no secondary index (SwiftletModel's unindexed, the others' default).
     static let configOrder: [(engine: String, indexing: String, label: String)] = [
-        ("SwiftletModel", "indexed",   "Swiftlet(i)"),
-        ("SwiftletModel", "unindexed", "Swiftlet(r)"),
+        ("SwiftletModel", "indexed",   "Swiftlet idx"),
+        ("SwiftletModel", "unindexed", "Swiftlet"),
         ("GRDB",          "default",   "GRDB"),
         ("SQLiteData",    "default",   "SQLiteData"),
         ("Realm",         "default",   "Realm"),
-        ("Realm",         "indexed",   "Realm(i)"),
+        ("Realm",         "indexed",   "Realm idx"),
         ("SwiftData",     "default",   "SwiftData"),
-        ("SwiftData",     "indexed",   "SwiftData(i)"),
+        ("SwiftData",     "indexed",   "SwiftData idx"),
     ]
 
     static let operations = ["byID", "equality", "notEqual", "comparison", "sort", "insert", "update"]
@@ -53,11 +54,27 @@ struct BenchReport {
     ]
     static func label(_ op: String) -> String { opLabels[op] ?? op }
 
+    /// Resolves which `valueType` row to read for a cell. Typed reads use the
+    /// requested int/string. The SwiftletModel *indexed* config splits its writes
+    /// by index kind (`hash`/`comparable`); here we surface the comparable (B-tree)
+    /// variant as the representative so the cross-engine write rows compare one
+    /// B-tree index per engine. The hash variant is reported separately. Everything
+    /// else (untyped ops) uses "-".
+    static func lookupVT(_ op: String, _ valueType: String, _ typedReads: Set<String>,
+                         engine: String, indexing: String) -> String {
+        if typedReads.contains(op) { return valueType }
+        if (op == "insert" || op == "update") && engine == "SwiftletModel" && indexing == "indexed" {
+            return "comparable"
+        }
+        return "-"
+    }
+
     static func main() {
         var valueType = "int"
         var metric = "avg"
         var byEngine = false
         var relational = false
+        var indexCost = false
         var explicitPath: String?
 
         let rest = Array(CommandLine.arguments.dropFirst())
@@ -68,6 +85,7 @@ struct BenchReport {
             case "--metric": i += 1; if i < rest.count { metric = rest[i] }
             case "--by-engine": byEngine = true
             case "--relational": relational = true
+            case "--index-cost": indexCost = true
             case "-h", "--help": printHelp(); return
             default: if !rest[i].hasPrefix("-") { explicitPath = rest[i] }
             }
@@ -95,6 +113,11 @@ struct BenchReport {
         }
         let sizes = Set(rows.map { $0.size }).sorted()
 
+        if indexCost {
+            renderIndexCost(rows: rows, sizes: sizes, metric: metric)
+            return
+        }
+
         if byEngine {
             for c in configs {
                 renderByEngine(rows: rows, config: c, sizes: sizes, valueType: valueType,
@@ -117,7 +140,7 @@ struct BenchReport {
                                operations: [String], typedReads: Set<String>, unit: String) {
 
         func value(_ op: String, _ size: Int) -> Double? {
-            let vt = typedReads.contains(op) ? valueType : "-"
+            let vt = lookupVT(op, valueType, typedReads, engine: config.engine, indexing: config.indexing)
             guard let r = rows.first(where: {
                 $0.engine == config.engine && $0.indexing == config.indexing
                 && $0.operation == op && $0.valueType == vt && $0.size == size
@@ -149,6 +172,46 @@ struct BenchReport {
         printRule(rowsW, colW, "└", "┴", "┘")
     }
 
+    // MARK: - SwiftletModel index-maintenance breakdown (hash vs comparable)
+
+    static func renderIndexCost(rows: [Row], sizes: [Int], metric: String) {
+        // Columns: each (operation, index kind) pair that SwiftletModel writes split into.
+        let cols: [(op: String, kind: String, label: String)] = [
+            ("insert", "hash", "insert·hash"), ("insert", "comparable", "insert·cmp"),
+            ("update", "hash", "update·hash"), ("update", "comparable", "update·cmp"),
+        ]
+
+        func value(_ op: String, _ kind: String, _ size: Int) -> Double? {
+            guard let r = rows.first(where: {
+                $0.engine == "SwiftletModel" && $0.indexing == "indexed"
+                && $0.operation == op && $0.valueType == kind && $0.size == size
+            }) else { return nil }
+            return metric == "min" ? r.min : r.avg
+        }
+
+        let sizeLabels = sizes.map { $0.formattedWithCommas() }
+        var rowsW = "rows".count
+        for s in sizeLabels { rowsW = max(rowsW, s.count) }
+
+        var colW = cols.map { $0.label.count }
+        for (ci, c) in cols.enumerated() {
+            for size in sizes { if let v = value(c.op, c.kind, size) { colW[ci] = max(colW[ci], fmt(v).count) } }
+        }
+
+        print(bold("  SwiftletModel · indexed · write cost per single index · \(metric) ms  "))
+        printRule(rowsW, colW, "┌", "┬", "┐")
+        printRow(rowsW, colW, "rows".padded(rowsW), cols.enumerated().map { $1.label.centered(colW[$0]) }, bolded: true)
+        printRule(rowsW, colW, "├", "┼", "┤")
+        for (si, size) in sizes.enumerated() {
+            let cells = cols.enumerated().map { (ci, c) -> String in
+                guard let v = value(c.op, c.kind, size) else { return "—".rightPadded(colW[ci]) }
+                return fmt(v).leftPadded(colW[ci])
+            }
+            printRow(rowsW, colW, sizeLabels[si].leftPadded(rowsW), cells, bolded: false)
+        }
+        printRule(rowsW, colW, "└", "┴", "┘")
+    }
+
     // MARK: - Rendering
 
     static func render(rows: [Row], size: Int,
@@ -157,7 +220,7 @@ struct BenchReport {
                        operations: [String], typedReads: Set<String>, unit: String) {
 
         func value(_ op: String, _ c: (engine: String, indexing: String, label: String)) -> Double? {
-            let vt = typedReads.contains(op) ? valueType : "-"
+            let vt = lookupVT(op, valueType, typedReads, engine: c.engine, indexing: c.indexing)
             guard let r = rows.first(where: {
                 $0.engine == c.engine && $0.indexing == c.indexing
                 && $0.operation == op && $0.valueType == vt && $0.size == size
@@ -169,7 +232,6 @@ struct BenchReport {
         let opHeader = "operation"
         var labelW = opHeader.count
         for op in operations { labelW = max(labelW, label(op).count) }
-        labelW = max(labelW, "Winner".count)
 
         var colW = configs.map { max($0.label.count, 7) }
         for (ci, c) in configs.enumerated() {
@@ -201,17 +263,6 @@ struct BenchReport {
             printRow(labelW, colW, label(op).padded(labelW), cells, bolded: false)
         }
 
-        // Winner row
-        printRule(labelW, colW, "├", "┼", "┤")
-        var winnerCells = [String](repeating: "", count: configs.count)
-        for op in operations {
-            let vals = configs.map { value(op, $0) }
-            guard let best = vals.compactMap({ $0 }).min(),
-                  let wi = vals.firstIndex(where: { $0 == best }) else { continue }
-            winnerCells[wi] = "✓"
-        }
-        let centered = winnerCells.enumerated().map { highlightIf($1 == "✓", $1.centered(colW[$0])) }
-        printRow(labelW, colW, "Winner".padded(labelW), centered, bolded: false)
         printRule(labelW, colW, "└", "┴", "┘")
     }
 
@@ -266,6 +317,11 @@ struct BenchReport {
           --relational  render the Northwind relational-view results (SwiftletModel /
                         GRDB / SwiftData over orderDetailsExt, productsByCat,
                         orderInvoice, invoices); size = order count
+          --index-cost  SwiftletModel indexed write cost broken down by index kind
+                        (hash vs comparable BTree) for insert/update across sizes
+
+        Note: in the flat tables, SwiftletModel·indexed writes show the comparable
+        (BTree) variant as the representative; use --index-cost for the full split.
         """)
     }
 }

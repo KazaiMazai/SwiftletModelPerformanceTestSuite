@@ -2,9 +2,10 @@
 //  RealmIndexedReadTests.swift
 //  SwiftletModelPerformanceTestSuite
 //
-//  Realm read benchmarks against an in-memory Realm with indexed `firstName`
-//  and `age` (IndexedRealmUser). Mirror of RealmReadTests. Note: Realm indexes
-//  accelerate equality/IN lookups; range/sort still scan.
+//  Realm read benchmarks against in-memory Realms indexed on a single field:
+//  int queries hit `RealmUserAgeIndexed`, string queries hit
+//  `RealmUserNameIndexed`, so each read measures one index in isolation. (Realm
+//  offers one general index type; range/sort still scan.)
 //
 
 import XCTest
@@ -27,49 +28,52 @@ final class RealmIndexedReadTests: BenchmarkCase {
         ])
     }
 
+    // Int queries → entity indexed on `age`.
     func read_equality_int(_ size: Int) {
-        let realm = Stores.indexedRealm(BenchmarkData.records(count: size))
-        measureRead { _ = Array(realm.objects(IndexedRealmUser.self).filter("age == %d", BenchmarkData.targetAge)) }
-    }
-
-    func read_equality_string(_ size: Int) {
-        let realm = Stores.indexedRealm(BenchmarkData.records(count: size))
-        measureRead { _ = Array(realm.objects(IndexedRealmUser.self).filter("firstName == %@", BenchmarkData.targetName)) }
+        let realm = Stores.ageIndexedRealm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUserAgeIndexed.self).filter("age == %d", BenchmarkData.targetAge)) }
     }
 
     func read_notEqual_int(_ size: Int) {
-        let realm = Stores.indexedRealm(BenchmarkData.records(count: size))
-        measureRead { _ = Array(realm.objects(IndexedRealmUser.self).filter("age != %d", BenchmarkData.targetAge)) }
-    }
-
-    func read_notEqual_string(_ size: Int) {
-        let realm = Stores.indexedRealm(BenchmarkData.records(count: size))
-        measureRead { _ = Array(realm.objects(IndexedRealmUser.self).filter("firstName != %@", BenchmarkData.targetName)) }
+        let realm = Stores.ageIndexedRealm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUserAgeIndexed.self).filter("age != %d", BenchmarkData.targetAge)) }
     }
 
     func read_comparison_int(_ size: Int) {
-        let realm = Stores.indexedRealm(BenchmarkData.records(count: size))
-        measureRead { _ = Array(realm.objects(IndexedRealmUser.self).filter("age > %d", BenchmarkData.ageThreshold)) }
-    }
-
-    func read_comparison_string(_ size: Int) {
-        let realm = Stores.indexedRealm(BenchmarkData.records(count: size))
-        measureRead { _ = Array(realm.objects(IndexedRealmUser.self).filter("firstName > %@", BenchmarkData.nameThreshold)) }
+        let realm = Stores.ageIndexedRealm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUserAgeIndexed.self).filter("age > %d", BenchmarkData.ageThreshold)) }
     }
 
     func read_sort_int(_ size: Int) {
-        let realm = Stores.indexedRealm(BenchmarkData.records(count: size))
-        measureRead { _ = Array(realm.objects(IndexedRealmUser.self).sorted(byKeyPath: "age")) }
+        let realm = Stores.ageIndexedRealm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUserAgeIndexed.self).sorted(byKeyPath: "age")) }
+    }
+
+    // String queries → entity indexed on `firstName`.
+    func read_equality_string(_ size: Int) {
+        let realm = Stores.nameIndexedRealm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUserNameIndexed.self).filter("firstName == %@", BenchmarkData.targetName)) }
+    }
+
+    func read_notEqual_string(_ size: Int) {
+        let realm = Stores.nameIndexedRealm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUserNameIndexed.self).filter("firstName != %@", BenchmarkData.targetName)) }
+    }
+
+    func read_comparison_string(_ size: Int) {
+        let realm = Stores.nameIndexedRealm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUserNameIndexed.self).filter("firstName > %@", BenchmarkData.nameThreshold)) }
     }
 
     func read_sort_string(_ size: Int) {
-        let realm = Stores.indexedRealm(BenchmarkData.records(count: size))
-        measureRead { _ = Array(realm.objects(IndexedRealmUser.self).sorted(byKeyPath: "firstName")) }
+        let realm = Stores.nameIndexedRealm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUserNameIndexed.self).sorted(byKeyPath: "firstName")) }
     }
 
+    // byID → primary key; entity choice is irrelevant.
     func read_byID(_ size: Int) {
-        let realm = Stores.indexedRealm(BenchmarkData.records(count: size))
-        let targetID = realm.objects(IndexedRealmUser.self).first!.id
-        measureRead { _ = realm.object(ofType: IndexedRealmUser.self, forPrimaryKey: targetID) }
+        let realm = Stores.nameIndexedRealm(BenchmarkData.records(count: size))
+        let targetID = realm.objects(RealmUserNameIndexed.self).first!.id
+        measureRead { _ = realm.object(ofType: RealmUserNameIndexed.self, forPrimaryKey: targetID) }
     }
 }
