@@ -1,0 +1,73 @@
+//
+//  RealmReadTests.swift
+//  SwiftletModelPerformanceTestSuite
+//
+//  Realm read benchmarks against an in-memory Realm (RealmUser).
+//  Results are lazy, so each query is forced with `Array(...)`.
+//
+
+import Foundation
+import RealmSwift
+
+final class RealmReadTests: BenchmarkCase {
+
+    override class func cases() -> [(name: String, body: (BenchmarkCase, Int) -> Void)] {
+        [
+            ("read_equality_int",      { ($0 as! RealmReadTests).read_equality_int($1) }),
+            ("read_equality_string",   { ($0 as! RealmReadTests).read_equality_string($1) }),
+            ("read_notEqual_int",      { ($0 as! RealmReadTests).read_notEqual_int($1) }),
+            ("read_notEqual_string",   { ($0 as! RealmReadTests).read_notEqual_string($1) }),
+            ("read_comparison_int",    { ($0 as! RealmReadTests).read_comparison_int($1) }),
+            ("read_comparison_string", { ($0 as! RealmReadTests).read_comparison_string($1) }),
+            ("read_sort_int",          { ($0 as! RealmReadTests).read_sort_int($1) }),
+            ("read_sort_string",       { ($0 as! RealmReadTests).read_sort_string($1) }),
+            ("read_byID",              { ($0 as! RealmReadTests).read_byID($1) }),
+        ]
+    }
+
+    func read_equality_int(_ size: Int) {
+        let realm = Stores.realm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUser.self).filter("age == %d", BenchmarkData.targetAge)) }
+    }
+
+    func read_equality_string(_ size: Int) {
+        let realm = Stores.realm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUser.self).filter("firstName == %@", BenchmarkData.targetName)) }
+    }
+
+    func read_notEqual_int(_ size: Int) {
+        let realm = Stores.realm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUser.self).filter("age != %d", BenchmarkData.targetAge)) }
+    }
+
+    func read_notEqual_string(_ size: Int) {
+        let realm = Stores.realm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUser.self).filter("firstName != %@", BenchmarkData.targetName)) }
+    }
+
+    func read_comparison_int(_ size: Int) {
+        let realm = Stores.realm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUser.self).filter("age > %d", BenchmarkData.ageThreshold)) }
+    }
+
+    func read_comparison_string(_ size: Int) {
+        let realm = Stores.realm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUser.self).filter("firstName > %@", BenchmarkData.nameThreshold)) }
+    }
+
+    func read_sort_int(_ size: Int) {
+        let realm = Stores.realm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUser.self).sorted(byKeyPath: "age")) }
+    }
+
+    func read_sort_string(_ size: Int) {
+        let realm = Stores.realm(BenchmarkData.records(count: size))
+        measureRead { _ = Array(realm.objects(RealmUser.self).sorted(byKeyPath: "firstName")) }
+    }
+
+    func read_byID(_ size: Int) {
+        let realm = Stores.realm(BenchmarkData.records(count: size))
+        let targetID = realm.objects(RealmUser.self).first!.id
+        measureRead { _ = realm.object(ofType: RealmUser.self, forPrimaryKey: targetID) }
+    }
+}

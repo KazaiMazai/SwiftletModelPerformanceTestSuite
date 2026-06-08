@@ -2,31 +2,28 @@
 import PackageDescription
 
 let package = Package(
-    name: "SwiftletModelBenchmark",
+    name: "SwiftletModelPerformanceTestSuite",
     platforms: [.macOS(.v15), .iOS(.v18)],
     dependencies: [
-        .package(url: "https://github.com/KazaiMazai/SwiftletModel.git", branch: "Write-path-performance-optimization"),
+        .package(url: "https://github.com/KazaiMazai/SwiftletModel.git", branch: "main"),
         .package(url: "https://github.com/realm/realm-swift", branch: "master"),
         .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.6.4"),
         .package(url: "https://github.com/groue/GRDB.swift", from: "7.11.0"),
     ],
     targets: [
         // CLI that renders BenchmarkResults/results.csv as a comparison table.
-        .executableTarget(name: "bench-report"),
-        // Obj-C base enabling runtime-parametrized XCTest cases (the Quick trick).
-        .target(
-            name: "ParametrizedXCTestCase",
-            linkerSettings: [.linkedFramework("XCTest")]
-        ),
-        .testTarget(
-            name: "SwiftletModelBenchmarkTests",
+        .executableTarget(name: "report", path: "Sources/Report"),
+        // The benchmark suite — a plain executable (no XCTest): a registry of
+        // cases run over each size, timed with a manual rampup loop.
+        .executableTarget(
+            name: "benchmarks",
             dependencies: [
-                "ParametrizedXCTestCase",
                 .product(name: "SwiftletModel", package: "SwiftletModel"),
                 .product(name: "RealmSwift", package: "realm-swift"),
                 .product(name: "SQLiteData", package: "sqlite-data"),
                 .product(name: "GRDB", package: "GRDB.swift"),
             ],
+            path: "Sources/Benchmarks",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
     ]
