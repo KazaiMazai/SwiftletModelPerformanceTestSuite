@@ -6,6 +6,7 @@
 //  (operations × engine configs) with the fastest cell per row highlighted.
 //
 //  Usage: swift run bench-report [path] [--type int|string] [--metric avg|min]
+//         swift run bench-report --relational   (Northwind views, relational.csv)
 //
 
 import Foundation
@@ -34,18 +35,30 @@ struct BenchReport {
     static let operations = ["byID", "equality", "notEqual", "comparison", "sort", "insert", "update"]
     static let typedReads: Set<String> = ["equality", "notEqual", "comparison", "sort"]
 
+    // Relational (Northwind) mode: the three relational engines and the four
+    // view workloads. None of these are typed, so `typedReads` is empty.
+    static let relationalConfigOrder: [(engine: String, indexing: String, label: String)] = [
+        ("SwiftletModel", "default", "Swiftlet"),
+        ("GRDB",          "default", "GRDB"),
+        ("SwiftData",     "default", "SwiftData"),
+    ]
+    static let relationalOps = ["orderDetailsExtended", "productsByCategory", "orderInvoice", "invoices"]
+
     // Display labels for the (machine-friendly) operation keys.
     static let opLabels: [String: String] = [
         "byID": "ID lookup", "equality": "equal", "notEqual": "not equal",
         "comparison": "compare", "sort": "sort", "insert": "insert", "update": "update",
+        "orderDetailsExtended": "orderDetailsExt", "productsByCategory": "productsByCat",
+        "orderInvoice": "orderInvoice (nav)", "invoices": "invoices (bulk)",
     ]
     static func label(_ op: String) -> String { opLabels[op] ?? op }
 
     static func main() {
-        var path = "BenchmarkResults/results.csv"
         var valueType = "int"
         var metric = "avg"
         var byEngine = false
+        var relational = false
+        var explicitPath: String?
 
         let rest = Array(CommandLine.arguments.dropFirst())
         var i = 0
@@ -54,11 +67,18 @@ struct BenchReport {
             case "--type":   i += 1; if i < rest.count { valueType = rest[i] }
             case "--metric": i += 1; if i < rest.count { metric = rest[i] }
             case "--by-engine": byEngine = true
+            case "--relational": relational = true
             case "-h", "--help": printHelp(); return
-            default: if !rest[i].hasPrefix("-") { path = rest[i] }
+            default: if !rest[i].hasPrefix("-") { explicitPath = rest[i] }
             }
             i += 1
         }
+
+        let path = explicitPath ?? (relational ? "BenchmarkResults/relational.csv" : "BenchmarkResults/results.csv")
+        let allConfigs = relational ? relationalConfigOrder : configOrder
+        let ops = relational ? relationalOps : operations
+        let typed: Set<String> = relational ? [] : typedReads
+        let unit = relational ? "orders" : "rows"
 
         guard let text = try? String(contentsOfFile: path, encoding: .utf8) else {
             FileHandle.standardError.write(Data("bench-report: cannot read '\(path)'\n".utf8))
@@ -70,19 +90,21 @@ struct BenchReport {
             exit(1)
         }
 
-        let configs = configOrder.filter { c in
+        let configs = allConfigs.filter { c in
             rows.contains { $0.engine == c.engine && $0.indexing == c.indexing }
         }
         let sizes = Set(rows.map { $0.size }).sorted()
 
         if byEngine {
             for c in configs {
-                renderByEngine(rows: rows, config: c, sizes: sizes, valueType: valueType, metric: metric)
+                renderByEngine(rows: rows, config: c, sizes: sizes, valueType: valueType,
+                               metric: metric, operations: ops, typedReads: typed, unit: unit)
                 print("")
             }
         } else {
             for size in sizes {
-                render(rows: rows, size: size, configs: configs, valueType: valueType, metric: metric)
+                render(rows: rows, size: size, configs: configs, valueType: valueType,
+                       metric: metric, operations: ops, typedReads: typed, unit: unit)
                 print("")
             }
         }
@@ -91,7 +113,8 @@ struct BenchReport {
     // MARK: - Per-engine scaling table (rows = sizes, columns = operations)
 
     static func renderByEngine(rows: [Row], config: (engine: String, indexing: String, label: String),
-                               sizes: [Int], valueType: String, metric: String) {
+                               sizes: [Int], valueType: String, metric: String,
+                               operations: [String], typedReads: Set<String>, unit: String) {
 
         func value(_ op: String, _ size: Int) -> Double? {
             let vt = typedReads.contains(op) ? valueType : "-"
@@ -103,7 +126,7 @@ struct BenchReport {
         }
 
         let sizeLabels = sizes.map { $0.formattedWithCommas() }
-        var rowsW = "rows".count
+        var rowsW = unit.count
         for s in sizeLabels { rowsW = max(rowsW, s.count) }
 
         var colW = operations.map { label($0).count }
@@ -111,9 +134,10 @@ struct BenchReport {
             for size in sizes { if let v = value(op, size) { colW[oi] = max(colW[oi], fmt(v).count) } }
         }
 
-        print(bold("  \(config.engine) · \(config.indexing) · \(metric) ms · typed reads = \(valueType)  "))
+        let typedNote = typedReads.isEmpty ? "" : " · typed reads = \(valueType)"
+        print(bold("  \(config.engine) · \(config.indexing) · \(metric) ms\(typedNote)  "))
         printRule(rowsW, colW, "┌", "┬", "┐")
-        printRow(rowsW, colW, "rows".padded(rowsW), operations.enumerated().map { label($1).centered(colW[$0]) }, bolded: true)
+        printRow(rowsW, colW, unit.padded(rowsW), operations.enumerated().map { label($1).centered(colW[$0]) }, bolded: true)
         printRule(rowsW, colW, "├", "┼", "┤")
         for (si, size) in sizes.enumerated() {
             let cells = operations.enumerated().map { (oi, op) -> String in
@@ -129,7 +153,8 @@ struct BenchReport {
 
     static func render(rows: [Row], size: Int,
                        configs: [(engine: String, indexing: String, label: String)],
-                       valueType: String, metric: String) {
+                       valueType: String, metric: String,
+                       operations: [String], typedReads: Set<String>, unit: String) {
 
         func value(_ op: String, _ c: (engine: String, indexing: String, label: String)) -> Double? {
             let vt = typedReads.contains(op) ? valueType : "-"
@@ -153,7 +178,8 @@ struct BenchReport {
             }
         }
 
-        let title = "  \(size.formattedWithCommas()) rows · \(metric) ms · typed reads = \(valueType)  "
+        let typedNote = typedReads.isEmpty ? "" : " · typed reads = \(valueType)"
+        let title = "  \(size.formattedWithCommas()) \(unit) · \(metric) ms\(typedNote)  "
         print(bold(title))
 
         // Header
@@ -229,13 +255,17 @@ struct BenchReport {
         print("""
         bench-report — render BenchmarkResults CSV as a comparison table
 
-        USAGE: swift run bench-report [path] [--type int|string] [--metric avg|min] [--by-engine]
+        USAGE: swift run bench-report [path] [--type int|string] [--metric avg|min] [--by-engine] [--relational]
 
-          path          CSV path (default: BenchmarkResults/results.csv)
+          path          CSV path (default: BenchmarkResults/results.csv,
+                        or BenchmarkResults/relational.csv with --relational)
           --type        value type for typed reads: int (default) or string
           --metric      avg (default) or min
           --by-engine   one table per engine, rows = item counts, columns = operations
                         (default layout: one table per size, rows = ops, columns = engines)
+          --relational  render the Northwind relational-view results (SwiftletModel /
+                        GRDB / SwiftData over orderDetailsExt, productsByCat,
+                        orderInvoice, invoices); size = order count
         """)
     }
 }
