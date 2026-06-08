@@ -7,17 +7,16 @@
 //  `update` actually churns the index. Isolated single-index write cost.
 //
 
-import XCTest
-import ParametrizedXCTestCase
+import Foundation
 import RealmSwift
 
 final class RealmIndexedWriteTests: BenchmarkCase {
 
-    override class func _qck_testMethodSelectors() -> [_QuickSelectorWrapper] {
-        registerParametrized([
+    override class func cases() -> [(name: String, body: (BenchmarkCase, Int) -> Void)] {
+        [
             ("write_insert", { ($0 as! RealmIndexedWriteTests).write_insert($1) }),
             ("write_update", { ($0 as! RealmIndexedWriteTests).write_update($1) }),
-        ])
+        ]
     }
 
     func write_insert(_ size: Int) {

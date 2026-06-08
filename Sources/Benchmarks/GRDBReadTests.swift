@@ -5,14 +5,13 @@
 //  Read benchmarks using GRDB's native query interface, in-memory DatabaseQueue.
 //
 
-import XCTest
-import ParametrizedXCTestCase
+import Foundation
 import GRDB
 
 final class GRDBReadTests: BenchmarkCase {
 
-    override class func _qck_testMethodSelectors() -> [_QuickSelectorWrapper] {
-        registerParametrized([
+    override class func cases() -> [(name: String, body: (BenchmarkCase, Int) -> Void)] {
+        [
             ("read_equality_int",      { ($0 as! GRDBReadTests).read_equality_int($1) }),
             ("read_equality_string",   { ($0 as! GRDBReadTests).read_equality_string($1) }),
             ("read_notEqual_int",      { ($0 as! GRDBReadTests).read_notEqual_int($1) }),
@@ -22,7 +21,7 @@ final class GRDBReadTests: BenchmarkCase {
             ("read_sort_int",          { ($0 as! GRDBReadTests).read_sort_int($1) }),
             ("read_sort_string",       { ($0 as! GRDBReadTests).read_sort_string($1) }),
             ("read_byID",              { ($0 as! GRDBReadTests).read_byID($1) }),
-        ])
+        ]
     }
 
     func read_equality_int(_ size: Int) {

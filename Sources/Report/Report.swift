@@ -1,18 +1,18 @@
 //
-//  BenchReport.swift
-//  bench-report
+//  Report.swift
+//  report
 //
 //  Parses BenchmarkResults/results.csv and prints a per-size comparison table
 //  (operations × engine configs) with the fastest cell per row highlighted.
 //
-//  Usage: swift run bench-report [path] [--type int|string] [--metric avg|min]
-//         swift run bench-report --relational   (Northwind views, relational.csv)
+//  Usage: swift run report [path] [--type int|string] [--metric avg|min]
+//         swift run report --relational   (Northwind views, relational.csv)
 //
 
 import Foundation
 
 @main
-struct BenchReport {
+struct Report {
 
     struct Row {
         let engine, indexing, access, operation, valueType: String
@@ -99,12 +99,12 @@ struct BenchReport {
         let unit = relational ? "orders" : "rows"
 
         guard let text = try? String(contentsOfFile: path, encoding: .utf8) else {
-            FileHandle.standardError.write(Data("bench-report: cannot read '\(path)'\n".utf8))
+            FileHandle.standardError.write(Data("report: cannot read '\(path)'\n".utf8))
             exit(1)
         }
         let rows = parse(text)
         guard !rows.isEmpty else {
-            FileHandle.standardError.write(Data("bench-report: no rows in '\(path)'\n".utf8))
+            FileHandle.standardError.write(Data("report: no rows in '\(path)'\n".utf8))
             exit(1)
         }
 
@@ -304,9 +304,9 @@ struct BenchReport {
 
     static func printHelp() {
         print("""
-        bench-report — render BenchmarkResults CSV as a comparison table
+        report — render BenchmarkResults CSV as a comparison table
 
-        USAGE: swift run bench-report [path] [--type int|string] [--metric avg|min] [--by-engine] [--relational]
+        USAGE: swift run report [path] [--type int|string] [--metric avg|min] [--by-engine] [--relational]
 
           path          CSV path (default: BenchmarkResults/results.csv,
                         or BenchmarkResults/relational.csv with --relational)

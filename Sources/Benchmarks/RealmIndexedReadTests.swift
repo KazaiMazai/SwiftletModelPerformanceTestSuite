@@ -8,14 +8,13 @@
 //  offers one general index type; range/sort still scan.)
 //
 
-import XCTest
-import ParametrizedXCTestCase
+import Foundation
 import RealmSwift
 
 final class RealmIndexedReadTests: BenchmarkCase {
 
-    override class func _qck_testMethodSelectors() -> [_QuickSelectorWrapper] {
-        registerParametrized([
+    override class func cases() -> [(name: String, body: (BenchmarkCase, Int) -> Void)] {
+        [
             ("read_equality_int",      { ($0 as! RealmIndexedReadTests).read_equality_int($1) }),
             ("read_equality_string",   { ($0 as! RealmIndexedReadTests).read_equality_string($1) }),
             ("read_notEqual_int",      { ($0 as! RealmIndexedReadTests).read_notEqual_int($1) }),
@@ -25,7 +24,7 @@ final class RealmIndexedReadTests: BenchmarkCase {
             ("read_sort_int",          { ($0 as! RealmIndexedReadTests).read_sort_int($1) }),
             ("read_sort_string",       { ($0 as! RealmIndexedReadTests).read_sort_string($1) }),
             ("read_byID",              { ($0 as! RealmIndexedReadTests).read_byID($1) }),
-        ])
+        ]
     }
 
     // Int queries → entity indexed on `age`.

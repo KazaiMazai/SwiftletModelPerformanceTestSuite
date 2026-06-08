@@ -32,40 +32,45 @@ Filter/sort operations are run for both **`Int`** and **`String`** fields. Each 
 - **Realm / SwiftData** — `default` and `indexed` (`@Persisted(indexed:)` / `#Index`), likewise split into single-field-indexed entities.
 - **SQLiteData / GRDB** — `default` (no secondary index).
 
-Each case runs a short **rampup** (discarded warmup iterations to reach steady state — warm caches, lazy init, SQLite prepared-statement compilation) and then times a fixed number of iterations: **50 for reads, 20 for writes** (reads are cheap to repeat; writes rebuild a fresh store every iteration). It's a manual warmup+timed loop rather than XCTest's `measure`, for control over rampup and iteration count. Test cases are generated at runtime per size via a small Obj-C `ParametrizedTestCase` base (the Quick trick), and each run appends a row per case to `BenchmarkResults/results.csv` (avg / min / max / stddev in ms).
+Each case runs a short **rampup** (discarded warmup iterations to reach steady state — warm caches, lazy init, SQLite prepared-statement compilation) and then times a fixed number of iterations: **50 for reads, 20 for writes** (reads are cheap to repeat; writes rebuild a fresh store every iteration). It's a manual warmup+timed loop with a monotonic clock — the suite is a plain executable (no XCTest, no assertions), just a registry of cases the runner expands over each size, appending a row per case to `BenchmarkResults/results.csv` (avg / min / max / stddev in ms).
 
 A second, separate benchmark — [**Relational retrieval (Northwind)**](#relational-retrieval-northwind) — measures graph traversal across related entities (SwiftletModel's design focus) and writes to its own `BenchmarkResults/relational.csv`.
 
 ## Running
 
-The whole suite runs headless on macOS via SwiftPM — no app host, no simulator:
+The suite is a plain SwiftPM **executable** (no XCTest), so it runs headless on macOS with one command — no app host, no simulator:
 
 ```bash
-swift test -c release
+swift run -c release benchmarks                       # everything
+swift run -c release benchmarks --suite SwiftletModel  # only matching suites
+swift run -c release benchmarks --suite Northwind      # only the relational suites
+swift run -c release benchmarks --size 1000            # only one dataset size
 ```
+
+`--suite` matches against the suite class name (case-insensitive), so `--suite IndexedWrite`, `--suite Realm`, `--suite GRDBRead`, etc. all work.
 
 > **Always use `-c release`.** A debug build compiles the Swift layers (SwiftletModel, RealmSwift, GRDB) unoptimized (`-Onone`), which penalizes them by 2–10× while leaving the C/C++ engines untouched — i.e. it produces *distorted*, not just slower, numbers.
 
-Configure the dataset size(s) in `Tests/SwiftletModelPerformanceTests/BenchmarkCase.swift`:
+Configure the dataset size(s) in `Sources/Benchmarks/BenchmarkCase.swift`:
 
 ```swift
 static let sizes = [10, 100, 1_000, 10_000]   // one table is produced per size
 ```
 
-Results are written to `BenchmarkResults/results.csv` at the package root.
+Flat results are written to `BenchmarkResults/results.csv`; the relational suites write `relational.csv`. A *filtered* run rewrites only the file(s) its suites touch, so run without `--suite` for a complete `results.csv`.
 
 ## Printing the results
 
 A dependency-free CLI renders the CSV as a comparison table:
 
 ```bash
-swift run bench-report                       # default CSV, avg ms, Int reads
-swift run bench-report path/to/results.csv   # explicit CSV path
-swift run bench-report --type string         # String variant for typed reads
-swift run bench-report --metric min          # min instead of avg
-swift run bench-report --by-engine           # per-engine scaling tables
-swift run bench-report --index-cost          # SwiftletModel write cost: hash vs comparable index
-swift run bench-report --relational          # Northwind relational.csv results
+swift run report                       # default CSV, avg ms, Int reads
+swift run report path/to/results.csv   # explicit CSV path
+swift run report --type string         # String variant for typed reads
+swift run report --metric min          # min instead of avg
+swift run report --by-engine           # per-engine scaling tables
+swift run report --index-cost          # SwiftletModel write cost: hash vs comparable index
+swift run report --relational          # Northwind relational.csv results
 ```
 
 **Two layouts:**
@@ -97,7 +102,7 @@ Each query runs against an entity carrying **only the index it uses**, in isolat
 
 ### Scaling per engine (`--by-engine`)
 
-`swift run bench-report --by-engine` prints one of these per engine — rows are item counts, columns are operations — so you can read each engine's scaling curve. (avg ms, Int reads)
+`swift run report --by-engine` prints one of these per engine — rows are item counts, columns are operations — so you can read each engine's scaling curve. (avg ms, Int reads)
 
 **SwiftletModel · indexed** — point reads stay flat; indexed writes scale *super*-linearly (index upkeep; `insert`/`update` shown for the comparable index):
 
@@ -173,7 +178,7 @@ Each query runs against an entity carrying **only the index it uses**, in isolat
 
 ### Index maintenance cost
 
-`swift run bench-report --index-cost` isolates how much one SwiftletModel index adds to writes, by kind (avg ms). A comparable BTree index costs **~2.5× (insert) / ~3.6× (update)** what a hash index does; `update` churns more than `insert` because the old key is removed and the new one inserted:
+`swift run report --index-cost` isolates how much one SwiftletModel index adds to writes, by kind (avg ms). A comparable BTree index costs **~2.5× (insert) / ~3.6× (update)** what a hash index does; `update` churns more than `insert` because the old key is removed and the new one inserted:
 
 | rows | insert·hash | insert·cmp | update·hash | update·cmp |
 |--:|--:|--:|--:|--:|
@@ -217,8 +222,8 @@ Four workloads — modeled on Northwind's own views — span the spectrum from n
 | `invoices (bulk)` | **bulk wide join** | flatten *every* order into the full 6-table denormalized invoice |
 
 ```bash
-swift test -c release                 # writes BenchmarkResults/relational.csv
-swift run bench-report --relational   # per-size tables (add --by-engine for scaling)
+swift run -c release benchmarks --suite Northwind   # writes BenchmarkResults/relational.csv
+swift run report --relational                 # per-size tables (add --by-engine for scaling)
 ```
 
 ### Results (avg ms, lower is better; **bold = fastest**)
@@ -250,16 +255,16 @@ swift run bench-report --relational   # per-size tables (add --by-engine for sca
 ## Project layout
 
 ```
-Package.swift
+Package.swift                    # two executables: `benchmarks` and `report`
 Sources/
-  ParametrizedXCTestCase/        # Obj-C runtime-parametrized XCTest base
-  bench-report/                  # CSV → table CLI
-Tests/SwiftletModelPerformanceTests/
-  BenchmarkCase.swift            # sizes, registration, measure helpers
-  BenchmarkDataset.swift         # seeded dataset + query targets
-  BenchmarkEntities.swift        # SwiftletModel entities + in-memory store builders
-  BenchmarkResultsWriter.swift   # appends results to results.csv / relational.csv
-  <Engine>ReadTests.swift / <Engine>WriteTests.swift
-  Northwind/                     # relational suite: dataset + per-engine schemas + view workloads
-  Support/                       # SwiftUser, RealmUser, name resources
+  Report/                        # CSV → table CLI (the `report` command)
+  Benchmarks/                    # the benchmark suite (the `benchmarks` command, no XCTest)
+    Runner.swift                 # @main: suite registry + CLI arg filtering
+    BenchmarkCase.swift          # base class, sizes, metadata, measure helpers
+    BenchmarkDataset.swift       # seeded dataset + query targets
+    BenchmarkEntities.swift      # SwiftletModel entities + in-memory store builders
+    BenchmarkResultsWriter.swift # appends results to results.csv / relational.csv
+    <Engine>ReadTests.swift / <Engine>WriteTests.swift
+    Northwind/                   # relational suite: dataset + per-engine schemas + view workloads
+    Support/                     # SwiftUser, RealmUser, name pools
 ```

@@ -7,17 +7,16 @@
 //  timed — no prior reads (update holds references from setup).
 //
 
-import XCTest
-import ParametrizedXCTestCase
+import Foundation
 import SwiftData
 
 final class SwiftDataWriteTests: BenchmarkCase {
 
-    override class func _qck_testMethodSelectors() -> [_QuickSelectorWrapper] {
-        registerParametrized([
+    override class func cases() -> [(name: String, body: (BenchmarkCase, Int) -> Void)] {
+        [
             ("write_insert", { ($0 as! SwiftDataWriteTests).write_insert($1) }),
             ("write_update", { ($0 as! SwiftDataWriteTests).write_update($1) }),
-        ])
+        ]
     }
 
     func write_insert(_ size: Int) {

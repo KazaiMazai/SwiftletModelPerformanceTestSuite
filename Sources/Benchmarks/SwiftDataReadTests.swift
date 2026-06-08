@@ -5,14 +5,13 @@
 //  SwiftData read benchmarks against an in-memory store (SwiftUser).
 //
 
-import XCTest
-import ParametrizedXCTestCase
+import Foundation
 import SwiftData
 
 final class SwiftDataReadTests: BenchmarkCase {
 
-    override class func _qck_testMethodSelectors() -> [_QuickSelectorWrapper] {
-        registerParametrized([
+    override class func cases() -> [(name: String, body: (BenchmarkCase, Int) -> Void)] {
+        [
             ("read_equality_int",      { ($0 as! SwiftDataReadTests).read_equality_int($1) }),
             ("read_equality_string",   { ($0 as! SwiftDataReadTests).read_equality_string($1) }),
             ("read_notEqual_int",      { ($0 as! SwiftDataReadTests).read_notEqual_int($1) }),
@@ -22,7 +21,7 @@ final class SwiftDataReadTests: BenchmarkCase {
             ("read_sort_int",          { ($0 as! SwiftDataReadTests).read_sort_int($1) }),
             ("read_sort_string",       { ($0 as! SwiftDataReadTests).read_sort_string($1) }),
             ("read_byID",              { ($0 as! SwiftDataReadTests).read_byID($1) }),
-        ])
+        ]
     }
 
     private func fetch(_ context: ModelContext, _ descriptor: FetchDescriptor<SwiftUser>) {

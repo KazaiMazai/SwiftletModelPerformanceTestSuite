@@ -6,17 +6,16 @@
 //  transaction. update: per-id UPDATE statements in one transaction (no read).
 //
 
-import XCTest
-import ParametrizedXCTestCase
+import Foundation
 import GRDB
 
 final class GRDBWriteTests: BenchmarkCase {
 
-    override class func _qck_testMethodSelectors() -> [_QuickSelectorWrapper] {
-        registerParametrized([
+    override class func cases() -> [(name: String, body: (BenchmarkCase, Int) -> Void)] {
+        [
             ("write_insert", { ($0 as! GRDBWriteTests).write_insert($1) }),
             ("write_update", { ($0 as! GRDBWriteTests).write_update($1) }),
-        ])
+        ]
     }
 
     func write_insert(_ size: Int) {

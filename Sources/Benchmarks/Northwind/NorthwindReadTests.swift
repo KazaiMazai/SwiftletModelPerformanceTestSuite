@@ -7,8 +7,7 @@
 //  Size = order count (line items fan out ~4×).
 //
 
-import XCTest
-import ParametrizedXCTestCase
+import Foundation
 import SwiftletModel
 import GRDB
 import SwiftData
@@ -21,14 +20,14 @@ func northwindOrderSample(_ size: Int) -> [Int] {
 }
 
 final class SwiftletModelNorthwindReadTests: BenchmarkCase {
-    override class func _qck_testMethodSelectors() -> [_QuickSelectorWrapper] {
-        registerParametrized([
+    override class func cases() -> [(name: String, body: (BenchmarkCase, Int) -> Void)] {
+        [
             ("read_orderDetailsExtended", { ($0 as! SwiftletModelNorthwindReadTests).read_orderDetailsExtended($1) }),
             ("read_productsByCategory",   { ($0 as! SwiftletModelNorthwindReadTests).read_productsByCategory($1) }),
             ("read_invoices",             { ($0 as! SwiftletModelNorthwindReadTests).read_invoices($1) }),
             ("read_invoicesJoined",       { ($0 as! SwiftletModelNorthwindReadTests).read_invoicesJoined($1) }),
             ("read_orderInvoice",         { ($0 as! SwiftletModelNorthwindReadTests).read_orderInvoice($1) }),
-        ])
+        ]
     }
 
     func read_orderDetailsExtended(_ size: Int) {
@@ -55,13 +54,13 @@ final class SwiftletModelNorthwindReadTests: BenchmarkCase {
 }
 
 final class GRDBNorthwindReadTests: BenchmarkCase {
-    override class func _qck_testMethodSelectors() -> [_QuickSelectorWrapper] {
-        registerParametrized([
+    override class func cases() -> [(name: String, body: (BenchmarkCase, Int) -> Void)] {
+        [
             ("read_orderDetailsExtended", { ($0 as! GRDBNorthwindReadTests).read_orderDetailsExtended($1) }),
             ("read_productsByCategory",   { ($0 as! GRDBNorthwindReadTests).read_productsByCategory($1) }),
             ("read_invoices",             { ($0 as! GRDBNorthwindReadTests).read_invoices($1) }),
             ("read_orderInvoice",         { ($0 as! GRDBNorthwindReadTests).read_orderInvoice($1) }),
-        ])
+        ]
     }
 
     func read_orderDetailsExtended(_ size: Int) {
@@ -84,13 +83,13 @@ final class GRDBNorthwindReadTests: BenchmarkCase {
 }
 
 final class SwiftDataNorthwindReadTests: BenchmarkCase {
-    override class func _qck_testMethodSelectors() -> [_QuickSelectorWrapper] {
-        registerParametrized([
+    override class func cases() -> [(name: String, body: (BenchmarkCase, Int) -> Void)] {
+        [
             ("read_orderDetailsExtended", { ($0 as! SwiftDataNorthwindReadTests).read_orderDetailsExtended($1) }),
             ("read_productsByCategory",   { ($0 as! SwiftDataNorthwindReadTests).read_productsByCategory($1) }),
             ("read_invoices",             { ($0 as! SwiftDataNorthwindReadTests).read_invoices($1) }),
             ("read_orderInvoice",         { ($0 as! SwiftDataNorthwindReadTests).read_orderInvoice($1) }),
-        ])
+        ]
     }
 
     func read_orderDetailsExtended(_ size: Int) {

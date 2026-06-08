@@ -7,17 +7,16 @@
 //  in a single transaction (mirrors "update N rows", no prior read).
 //
 
-import XCTest
-import ParametrizedXCTestCase
+import Foundation
 import SQLiteData
 
 final class SQLiteDataWriteTests: BenchmarkCase {
 
-    override class func _qck_testMethodSelectors() -> [_QuickSelectorWrapper] {
-        registerParametrized([
+    override class func cases() -> [(name: String, body: (BenchmarkCase, Int) -> Void)] {
+        [
             ("write_insert", { ($0 as! SQLiteDataWriteTests).write_insert($1) }),
             ("write_update", { ($0 as! SQLiteDataWriteTests).write_update($1) }),
-        ])
+        ]
     }
 
     func write_insert(_ size: Int) {

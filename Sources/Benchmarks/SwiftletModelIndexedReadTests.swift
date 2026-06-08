@@ -8,14 +8,13 @@
 //  alongside three unrelated ones. One measured method per (operation × type).
 //
 
-import XCTest
-import ParametrizedXCTestCase
+import Foundation
 import SwiftletModel
 
 final class SwiftletModelIndexedReadTests: BenchmarkCase {
 
-    override class func _qck_testMethodSelectors() -> [_QuickSelectorWrapper] {
-        registerParametrized([
+    override class func cases() -> [(name: String, body: (BenchmarkCase, Int) -> Void)] {
+        [
             ("read_equality_int",      { ($0 as! SwiftletModelIndexedReadTests).read_equality_int($1) }),
             ("read_equality_string",   { ($0 as! SwiftletModelIndexedReadTests).read_equality_string($1) }),
             ("read_notEqual_int",      { ($0 as! SwiftletModelIndexedReadTests).read_notEqual_int($1) }),
@@ -25,7 +24,7 @@ final class SwiftletModelIndexedReadTests: BenchmarkCase {
             ("read_sort_int",          { ($0 as! SwiftletModelIndexedReadTests).read_sort_int($1) }),
             ("read_sort_string",       { ($0 as! SwiftletModelIndexedReadTests).read_sort_string($1) }),
             ("read_byID",              { ($0 as! SwiftletModelIndexedReadTests).read_byID($1) }),
-        ])
+        ]
     }
 
     // equality → hash index

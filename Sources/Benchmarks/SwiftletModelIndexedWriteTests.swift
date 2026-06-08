@@ -12,19 +12,18 @@
 //  `valueType` column (`hash` / `comparable`).
 //
 
-import XCTest
-import ParametrizedXCTestCase
+import Foundation
 import SwiftletModel
 
 final class SwiftletModelIndexedWriteTests: BenchmarkCase {
 
-    override class func _qck_testMethodSelectors() -> [_QuickSelectorWrapper] {
-        registerParametrized([
+    override class func cases() -> [(name: String, body: (BenchmarkCase, Int) -> Void)] {
+        [
             ("write_insert_hash",       { ($0 as! SwiftletModelIndexedWriteTests).write_insert_hash($1) }),
             ("write_insert_comparable", { ($0 as! SwiftletModelIndexedWriteTests).write_insert_comparable($1) }),
             ("write_update_hash",       { ($0 as! SwiftletModelIndexedWriteTests).write_update_hash($1) }),
             ("write_update_comparable", { ($0 as! SwiftletModelIndexedWriteTests).write_update_comparable($1) }),
-        ])
+        ]
     }
 
     func write_insert_hash(_ size: Int)       { insert(StringHashUser.self, size) }
