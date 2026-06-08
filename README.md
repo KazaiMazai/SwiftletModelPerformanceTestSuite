@@ -1,4 +1,4 @@
-# SwiftletModelPerformanceTestSuite
+# SwiftletModel Performance Test Suite
 
 In-memory performance benchmarks comparing **[SwiftletModel](https://github.com/KazaiMazai/SwiftletModel)** against the common persistence options on Apple platforms:
 
