@@ -34,6 +34,8 @@ Filter/sort operations are run for both **`Int`** and **`String`** fields. Each 
 
 Each case runs a short **rampup** (discarded warmup iterations to reach steady state — warm caches, lazy init, SQLite prepared-statement compilation) and then times a fixed number of iterations: **50 for reads, 20 for writes** (reads are cheap to repeat; writes rebuild a fresh store every iteration). It's a manual warmup+timed loop rather than XCTest's `measure`, for control over rampup and iteration count. Test cases are generated at runtime per size via a small Obj-C `ParametrizedTestCase` base (the Quick trick), and each run appends a row per case to `BenchmarkResults/results.csv` (avg / min / max / stddev in ms).
 
+A second, separate benchmark — [**Relational retrieval (Northwind)**](#relational-retrieval-northwind) — measures graph traversal across related entities (SwiftletModel's design focus) and writes to its own `BenchmarkResults/relational.csv`.
+
 ## Running
 
 The whole suite runs headless on macOS via SwiftPM — no app host, no simulator:
@@ -62,12 +64,15 @@ swift run bench-report path/to/results.csv   # explicit CSV path
 swift run bench-report --type string         # String variant for typed reads
 swift run bench-report --metric min          # min instead of avg
 swift run bench-report --by-engine           # per-engine scaling tables
+swift run bench-report --relational          # Northwind relational.csv results
 ```
 
 **Two layouts:**
 
 - **Default** — one table *per size*: rows = operations, columns = engines. Highlights the fastest engine per row (bold green in a terminal) and marks every engine that wins ≥1 operation in a `Winner` row.
 - **`--by-engine`** — one table *per engine*: rows = item counts, columns = operations. Shows how each engine scales with dataset size.
+
+Add **`--relational`** to either layout to render `BenchmarkResults/relational.csv` (the Northwind workloads, SwiftletModel / GRDB / SwiftData, size = order count) instead of the flat suite.
 
 ## Results
 
@@ -171,6 +176,42 @@ Apple Silicon, macOS, **Release**, in-memory, **rampup + 50 read / 20 write time
 - **SwiftData is last on every read and insert, by ~8–10×** (`not equal` 91 ms, insert 454 ms at 10k). It runs the *same* `:memory:` SQLite as SQLiteData/GRDB — both far faster — so the cost is its object-materialization layer, not the database.
 - **Scaling shapes:** `ID lookup` flat (O(1)); indexed `equal` scales gently while *unindexed* `equal` is ~linear; most reads/writes are ~linear, except SwiftletModel's indexed writes (super-linear).
 
+## Relational retrieval (Northwind)
+
+The flat suite above measures single-table primitives. A second, **separate** benchmark targets **relational retrieval** — SwiftletModel's design focus — on synthetic data shaped like the classic **Northwind** schema (Categories, Suppliers, Shippers, Employees, Customers, Products, Orders, Order Details). Only the three engines with real relationship support are compared: **SwiftletModel** (normalized `@Relationship` graph), **GRDB** (hand-written, FK-indexed SQL JOINs — SQLite's best case), and **SwiftData** (object-graph faulting). Here `size` is the **order count**; line items fan out ~4×. Results go to their own file, `BenchmarkResults/relational.csv`, so running one suite never clobbers the other.
+
+Four workloads — modeled on Northwind's own views — span the spectrum from navigational to bulk:
+
+| Workload | Shape | What it does |
+|---|---|---|
+| `productsByCat` | few-side fan-out | non-discontinued products grouped under their 8 categories |
+| `orderDetailsExt` | few-side fan-out | each line item joined to its product (extended price) |
+| `orderInvoice (nav)` | **navigational** | for ~200 sampled orders, traverse each order's full graph (customer + employee + shipper + line items + products) into that order's invoice rows |
+| `invoices (bulk)` | **bulk wide join** | flatten *every* order into the full 6-table denormalized invoice |
+
+```bash
+swift test -c release                 # writes BenchmarkResults/relational.csv
+swift run bench-report --relational   # per-size tables (add --by-engine for scaling)
+```
+
+### Results (avg ms, lower is better; **bold = fastest**)
+
+| Workload | 1,000 · Swiftlet | 1,000 · GRDB | 1,000 · SwiftData | 10,000 · Swiftlet | 10,000 · GRDB | 10,000 · SwiftData |
+|---|--:|--:|--:|--:|--:|--:|
+| productsByCat | **0.06** | 0.07 | 2.39 | **0.06** | 0.06 | 4.09 |
+| orderDetailsExt | **1.98** | 3.09 | 68.05 | **18.38** | 31.22 | 673.54 |
+| orderInvoice (nav) | **5.99** | 10.73 | 157.75 | **6.36** | 11.14 | 225.40 |
+| invoices (bulk) | 30.73 | **6.22** | 289.09 | 321.50 | **64.07** | 2920.70 |
+
+### Takeaways
+
+- **Navigational traversal is SwiftletModel's home turf.** `orderInvoice` — fetch an order by id, then hop its graph — is **~1.7× faster than GRDB** and **~35× faster than SwiftData** at every size. An in-memory index lookup plus direct pointer-following beats re-running a 5-table join (+ statement step) per order, and obliterates SwiftData's faulting.
+- **Traversal direction matters enormously for fan-out reads.** Traversing from the *few* side (`Category → its products`, `Product → its line items`) resolves each of the 8 categories / 77 products **once** rather than re-resolving them per row. That alone turned an earlier ~3.6× *loss* into a ~1.6× *win* on `orderDetailsExt` (1.98 vs GRDB's 3.09 ms at 1k). Drive `.with` from the side with fewer entities.
+- **Bulk denormalized dumps still go to SQL.** `invoices` — materialize every row of the full 6-table join — is GRDB's by ~5×. Producing one giant flattened table is exactly what SQLite's join engine is built for; SwiftletModel pays a per-entity materialization cost across the whole fan-out.
+- **SwiftData is last on every relational workload** (25–45× behind), dominated by object faulting as the graph is walked.
+
+**Rule of thumb:** if you need to *traverse the graph and assemble a result* (navigational reads, point lookups, moderate fan-out from the few side), SwiftletModel wins. If you need to *dump a huge fully-denormalized table*, reach for SQL.
+
 ## Methodology & caveats
 
 - **Release only** (see above). Cross-module optimization isn't enabled because it conflicts with the testability needed by the test target; `-O` + whole-module is the representative max.
@@ -190,7 +231,8 @@ Tests/SwiftletModelPerformanceTests/
   BenchmarkCase.swift            # sizes, registration, measure helpers
   BenchmarkDataset.swift         # seeded dataset + query targets
   BenchmarkEntities.swift        # SwiftletModel entities + in-memory store builders
-  BenchmarkResultsWriter.swift   # appends results to CSV
+  BenchmarkResultsWriter.swift   # appends results to results.csv / relational.csv
   <Engine>ReadTests.swift / <Engine>WriteTests.swift
+  Northwind/                     # relational suite: dataset + per-engine schemas + view workloads
   Support/                       # SwiftUser, RealmUser, name resources
 ```
