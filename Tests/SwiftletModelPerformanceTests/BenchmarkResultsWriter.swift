@@ -7,6 +7,12 @@
 //  at the repository root (derived from `#filePath`, so no configuration is
 //  needed); if that location isn't writable it falls back to the temp dir.
 //
+//  Two files are written, routed by test class: the flat micro-benchmarks
+//  (equality/sort/insert/…) go to `results.csv`, while the relational Northwind
+//  workloads go to `relational.csv`. Their `size` axes mean different things
+//  (row count vs. order count) and they cover different engines, so keeping
+//  them apart means running one subset never clobbers the other.
+//
 
 import Foundation
 
@@ -14,10 +20,16 @@ enum BenchmarkResultsWriter {
 
     private static let lock = NSLock()
     private static var samplesByTest: [String: [Double]] = [:]   // seconds
-    private static var resolvedURL: URL?
+    private static var resolvedURLs: [String: URL] = [:]         // filename → URL
 
     private static let header =
         "engine,indexing,access,operation,valueType,size,samples,avg_ms,min_ms,max_ms,stddev_ms"
+
+    /// Routes a test to its output file. Relational (Northwind) suites get their
+    /// own CSV; everything else lands in the shared flat-benchmark file.
+    private static func fileName(for test: String) -> String {
+        test.contains("Northwind") ? "relational.csv" : "results.csv"
+    }
 
     // MARK: - Recording
 
@@ -52,20 +64,20 @@ enum BenchmarkResultsWriter {
             ms(avg), ms(minV), ms(maxV), ms(stddev)
         ].joined(separator: ",")
 
-        append(row)
+        append(row, to: fileName(for: test))
     }
 
     // MARK: - File output
 
-    private static func append(_ row: String) {
+    private static func append(_ row: String, to fileName: String) {
         lock.lock(); defer { lock.unlock() }
 
         let url: URL
-        if let resolved = resolvedURL {
+        if let resolved = resolvedURLs[fileName] {
             url = resolved
         } else {
-            url = makeFile()
-            resolvedURL = url
+            url = makeFile(fileName)
+            resolvedURLs[fileName] = url
             print("📊 Benchmark results → \(url.path)")
         }
 
@@ -77,14 +89,14 @@ enum BenchmarkResultsWriter {
 
     /// Creates a fresh results file (with header) and returns its URL,
     /// preferring the repo's `BenchmarkResults/` dir, else the temp dir.
-    private static func makeFile() -> URL {
+    private static func makeFile(_ fileName: String) -> URL {
         let preferred = URL(fileURLWithPath: #filePath)        // <pkg>/Tests/SwiftletModelPerformanceTests/BenchmarkResultsWriter.swift
             .deletingLastPathComponent()                       // .../SwiftletModelPerformanceTests
             .deletingLastPathComponent()                       // .../Tests
             .deletingLastPathComponent()                       // package root
-            .appendingPathComponent("BenchmarkResults/results.csv")
+            .appendingPathComponent("BenchmarkResults/\(fileName)")
 
-        for candidate in [preferred, URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("BenchmarkResults/results.csv")] {
+        for candidate in [preferred, URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("BenchmarkResults/\(fileName)")] {
             do {
                 try FileManager.default.createDirectory(
                     at: candidate.deletingLastPathComponent(), withIntermediateDirectories: true)
